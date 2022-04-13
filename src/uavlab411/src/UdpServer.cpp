@@ -6,6 +6,7 @@
 #include "std_msgs/String.h"
 #include "mavros_msgs/State.h"
 #include "mavros_msgs/ManualControl.h"
+#include "mavros_msgs/CommandBool.h"
 #include "mavros_msgs/SetMode.h"
 #include <iostream>
 
@@ -14,10 +15,14 @@
 using namespace std;
 
 /* ---- Global variable ---- */
+
+// Timing
 ros::Timer state_timeout_timer; // Check timeout connecting
+ros::Duration arming_timeout;
+ros::Duration state_timeout;
 
 // ROS Message
-mavros_msgs::StateConstPtr state_msg; // State robot
+mavros_msgs::State state; // State robot
 mavros_msgs::ManualControl manual_control_msg; // Manual control msg
 
 //param
@@ -43,7 +48,7 @@ inline int16_t ReadINT16(char *ByteArray, int32_t Offset)
 void handle_msg_set_mode(char buff[]) 
 {
 	uint16_t new_mode = ReadINT16(buff, 2);
-	if(state_msg->mode != mode_define[new_mode])
+	if(state.mode != mode_define[new_mode])
 	{
 		static mavros_msgs::SetMode sm;
 		sm.request.custom_mode = mode_define[new_mode];
@@ -53,6 +58,40 @@ void handle_msg_set_mode(char buff[])
 	}
 	else{
 		ROS_INFO("Robot already in this mode");
+	}
+}
+
+void handle_arm_disarm(char buff[]) 
+{
+	ros::Rate r(10);
+	uint16_t new_action = ReadINT16(buff, 2);
+	if(!TIMEOUT(state, state_timeout) && !state.armed && new_action == 1) // Arming
+	{
+		ros::Time start = ros::Time::now();
+		ROS_INFO("arming");
+		mavros_msgs::CommandBool srv;
+		srv.request.value = true;
+		if (!arming.call(srv)) {
+			throw std::runtime_error("Error calling arming service");
+		}
+
+		// wait until armed
+		while (ros::ok()) {
+			ros::spinOnce();
+			if (state.armed) {
+				break;
+			} else if (ros::Time::now() - start > arming_timeout) {
+				string report = "Arming timed out";
+				ROS_INFO("ARMING TIMEOUT... TRY AGAIN!!");
+				throw std::runtime_error(report);
+			}
+			ros::spinOnce();
+			r.sleep();
+		}
+	}
+	else if(!TIMEOUT(state, state_timeout) && state.armed && new_action == 0) // Disarming
+	{
+		ROS_INFO("DISARM");
 	}
 }
 
@@ -74,24 +113,9 @@ void handle_msg_manual_control(int bsize, char buff[])
 }
 
 // Handle state from UAV
-void handleState(const mavros_msgs::StateConstPtr& state)
+void handleState(const mavros_msgs::State& s)
 {
-	state_timeout_timer.setPeriod(ros::Duration(3), true);
-	state_timeout_timer.start();
-
-	if (!state_msg || state->connected != state_msg->connected ||
-		state->mode != state_msg->mode ||
-		state->armed != state_msg->armed)
-		{
-			state_msg = state;
-		}
-}
-
-// handle sate timeout
-void stateTimedOut(const ros::TimerEvent&)
-{
-	ROS_INFO("State timeout");
-	state_msg = nullptr;
+	state = s;
 }
 
 void init()
@@ -133,7 +157,7 @@ void socketThread()
 	while (true) {
 		// read next UDP packet
 		int bsize = recvfrom(sockfd, &buff[0], sizeof(buff) - 1, 0, (sockaddr *) &client_addr, &client_addr_size);
-		
+
 		if (bsize < 0) {
 			ROS_ERROR("recvfrom() error: %s", strerror(errno));
 			
@@ -164,7 +188,8 @@ void socketThread()
 					handle_msg_manual_control(bsize, buff);
 					break;
 
-				case 5:
+				case MAV_CMD_COMPONENT_ARM_DISARM:
+					handle_arm_disarm(buff);
 					break;
 				default:
 					
@@ -187,13 +212,16 @@ int main(int argc, char **argv)
 	manual_control_pub = nh.advertise<mavros_msgs::ManualControl>("mavros/manual_control/send", 1);
 	
 	// Initial subscribe
-	state_sub = nh.subscribe("mavros/state", 1, &handleState);
+	auto state_sub = nh.subscribe("mavros/state", 1, &handleState);
 
-	// Service
+	// Service client
 	set_mode = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
+	arming = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
 
 	// Timer
-	state_timeout_timer = nh.createTimer(ros::Duration(0), &stateTimedOut, true, false);
+	state_timeout = ros::Duration(nh_priv.param("state_timeout", 3.0));
+	arming_timeout = ros::Duration(nh_priv.param("arming_timeout", 4.0));
+	
 	init();
 	ros::spin();
 }
