@@ -116,7 +116,7 @@ if(NOT "/home/minh/Documents/catkin_uav_ws/src/uavlab411/include " STREQUAL " ")
   endforeach()
 endif()
 
-set(libraries "")
+set(libraries "uavlab411")
 foreach(library ${libraries})
   # keep build configuration keywords, target names and absolute libraries as-is
   if("${library}" MATCHES "^(debug|optimized|general)$")

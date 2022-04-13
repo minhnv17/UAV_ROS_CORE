@@ -1,0 +1,4 @@
+<launch>
+    <node name="UdpSocket" pkg="uavlab411" type="UdpServer" output="screen">
+    </node>
+</launch>

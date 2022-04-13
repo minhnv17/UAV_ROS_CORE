@@ -12,15 +12,16 @@ using std::string;
 // 
 string mode_define[] = {"POSCTL", "OFFBOARD", "AUTO.LAND"};
 
-void socketThread();
-int createSocket(int);
-void handleState(const mavros_msgs::State&);
-void stateTimedOut(const ros::TimerEvent&);
-inline int16_t ReadINT16(char *, int32_t);
+void 			readingSocketThread();
+void 			writingSocketThread();
+int  			createSocket(int);
+void 			handleState(const mavros_msgs::State&);
+void 			stateTimedOut(const ros::TimerEvent&);
+inline int16_t 	ReadINT16(char *, int32_t);
 
-void handle_msg_set_mode(char buff[]);
-void handle_msg_manual_control(int bsize, char buff[]);
-void handle_arm_disarm(char buff[]);
+void 			handle_msg_set_mode(char buff[]);
+void 			handle_msg_manual_control(int bsize, char buff[]);
+void 			handle_arm_disarm(char buff[]);
 
 struct ControlMessage
 {

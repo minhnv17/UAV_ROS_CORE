@@ -54,6 +54,7 @@ void handle_msg_set_mode(char buff[])
 		sm.request.custom_mode = mode_define[new_mode];
 
 		if (!set_mode.call(sm))
+			ROS_INFO("Error calling set_mode service");
 			throw std::runtime_error("Error calling set_mode service");
 	}
 	else{
@@ -121,7 +122,7 @@ void handleState(const mavros_msgs::State& s)
 void init()
 {
 	// Thread for UDP soket
-	std::thread t(&socketThread);
+	std::thread t(&readingSocketThread);
 	t.detach();
 }
 
@@ -143,7 +144,7 @@ int createSocket(int port)
 	return sockfd;
 }
 
-void socketThread()
+void readingSocketThread()
 {
 	int sockfd = createSocket(port);
 
@@ -160,23 +161,8 @@ void socketThread()
 
 		if (bsize < 0) {
 			ROS_ERROR("recvfrom() error: %s", strerror(errno));
-			
 		}
-		// } else if (bsize != sizeof(ControlMessage)) {
-		// 	ROS_ERROR_THROTTLE(30, "Wrong UDP packet size: %d", bsize);
-		// 	
-		// }
 		else {
-			// for(int i = 0; i < buff.lenght())
-			// unpack message
-			// warning: ignore endianness, so the code is platform-dependent
-			// ControlMessage *msg = (ControlMessage *)buff;
-			
-			// manual_control_msg.x = msg->x;
-			// manual_control_msg.y = msg->y;
-			// manual_control_msg.z = msg->z;
-			// manual_control_msg.r = msg->r;
-
 			uint16_t number = ReadINT16(buff, 0);
 			switch (number)
 			{

@@ -102,7 +102,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
  INCLUDE_DIRS include
-#  LIBRARIES uavlab411
+ LIBRARIES uavlab411
 #  CATKIN_DEPENDS roscpp
 #  DEPENDS system_lib
 )
@@ -132,7 +132,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/uavlab411_node.cpp)
-add_executable(uavlink_udp src/UdpServer.cpp)
+add_executable(UdpServer src/UdpServer.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -144,7 +144,7 @@ add_executable(uavlink_udp src/UdpServer.cpp)
 # add_dependencies(hello hello_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(uavlink_udp
+target_link_libraries(UdpServer
   ${catkin_LIBRARIES}
 )
 
