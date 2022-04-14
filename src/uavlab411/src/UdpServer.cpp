@@ -39,13 +39,6 @@ ros::Subscriber state_sub;
 // Publisher
 ros::Publisher manual_control_pub;
 
-inline int16_t ReadINT16(char *ByteArray, int32_t Offset)
-{
-	int16_t result;
-	memcpy(&result, ByteArray+Offset, sizeof(int16_t));
-	return result;
-};
-
 void handle_msg_set_mode(char buff[]) 
 {
 	uint16_t new_mode = ReadINT16(buff, 2);
@@ -117,7 +110,16 @@ void handle_msg_manual_control(int bsize, char buff[])
 // Handle state from UAV
 void handleState(const mavros_msgs::State& s)
 {
-	state = s;
+	if (state.connected != state.connected ||
+		state.mode != state.mode ||
+		state.armed != state.armed)
+	{
+		state = s;
+
+	}
+	// char buff[];
+
+	// handle_write_state()
 }
 
 void init()
@@ -127,8 +129,8 @@ void init()
 	readThread.detach();
 
 	// Thread for UDP socket write
-	std::thread writeThread(&writingSocketThread);
-	writeThread.detach();
+	// std::thread writeThread(&writingSocketThread);
+	// writeThread.detach();
 }
 
 int createSocket(int port)
@@ -184,7 +186,6 @@ void readingSocketThread()
 					
 					break;
 			}
-			// printf("This is %d\n", number);
 		}
 	}
 }
@@ -196,12 +197,14 @@ void writingSocketThread()
 
 	while (true)
 	{
-		sendto(sockfd, (const char *)buff, strlen(buff), 0, (const struct sockaddr *) &client_addr, client_addr_size);
 		printf("sending data\n");
 		rating.sleep();
 	}
 }
-
+void handle_write_state(char buff[])
+{
+	sendto(sockfd, (const char *)buff, strlen(buff), 0, (const struct sockaddr *) &client_addr, client_addr_size);
+}
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "UdpSocket");

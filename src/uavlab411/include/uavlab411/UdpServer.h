@@ -17,11 +17,22 @@ void 			writingSocketThread();
 int  			createSocket(int);
 void 			handleState(const mavros_msgs::State&);
 void 			stateTimedOut(const ros::TimerEvent&);
-inline int16_t 	ReadINT16(char *, int32_t);
 
+// Function handle receiver msg
 void 			handle_msg_set_mode(char buff[]);
 void 			handle_msg_manual_control(int bsize, char buff[]);
 void 			handle_arm_disarm(char buff[]);
+
+// Function handle send msg
+void handle_write_state(char buff[]);
+
+// Working byte library
+inline int16_t ReadINT16(char *ByteArray, int32_t Offset)
+{
+	int16_t result;
+	memcpy(&result, ByteArray+Offset, sizeof(int16_t));
+	return result;
+};
 
 struct ControlMessage
 {
