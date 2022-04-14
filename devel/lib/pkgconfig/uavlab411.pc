@@ -1,8 +1,0 @@
-prefix=/home/minh/Documents/catkin_uav_ws/devel
-
-Name: uavlab411
-Description: Description of uavlab411
-Version: 0.0.0
-Cflags: -I/home/minh/Documents/catkin_uav_ws/src/uavlab411/include
-Libs: -L${prefix}/lib -luavlab411
-Requires: 

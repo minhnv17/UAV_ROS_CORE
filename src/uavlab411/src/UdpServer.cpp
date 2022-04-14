@@ -1,5 +1,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <errno.h>
 #include <thread>
 #include "ros/ros.h"
@@ -8,13 +9,14 @@
 #include "mavros_msgs/ManualControl.h"
 #include "mavros_msgs/CommandBool.h"
 #include "mavros_msgs/SetMode.h"
-#include <iostream>
 
 #include "uavlab411/UdpServer.h"
 
-using namespace std;
-
 /* ---- Global variable ---- */
+// Socket server
+int sockfd;
+sockaddr_in client_addr;
+socklen_t client_addr_size = sizeof(client_addr);
 
 // Timing
 ros::Timer state_timeout_timer; // Check timeout connecting
@@ -36,7 +38,6 @@ ros::Subscriber state_sub;
 
 // Publisher
 ros::Publisher manual_control_pub;
-
 
 inline int16_t ReadINT16(char *ByteArray, int32_t Offset)
 {
@@ -121,9 +122,13 @@ void handleState(const mavros_msgs::State& s)
 
 void init()
 {
-	// Thread for UDP soket
-	std::thread t(&readingSocketThread);
-	t.detach();
+	// Thread for UDP soket read
+	std::thread readThread(&readingSocketThread);
+	readThread.detach();
+
+	// Thread for UDP socket write
+	std::thread writeThread(&writingSocketThread);
+	writeThread.detach();
 }
 
 int createSocket(int port)
@@ -146,12 +151,10 @@ int createSocket(int port)
 
 void readingSocketThread()
 {
-	int sockfd = createSocket(port);
-
 	char buff[9999];
 
-	sockaddr_in client_addr;
-	socklen_t client_addr_size = sizeof(client_addr);
+	// Socket create
+	sockfd = createSocket(port);
 
 	ROS_INFO("UDP UdpSocket initialized on port %d", port);
 	// handle_msg_set_mode();
@@ -183,6 +186,19 @@ void readingSocketThread()
 			}
 			// printf("This is %d\n", number);
 		}
+	}
+}
+
+void writingSocketThread()
+{
+	ros::Rate rating(1);
+	char buff[5] = {0};
+
+	while (true)
+	{
+		sendto(sockfd, (const char *)buff, strlen(buff), 0, (const struct sockaddr *) &client_addr, client_addr_size);
+		printf("sending data\n");
+		rating.sleep();
 	}
 }
 
