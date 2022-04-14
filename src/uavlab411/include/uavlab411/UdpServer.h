@@ -34,7 +34,26 @@ inline int16_t ReadINT16(char *ByteArray, int32_t Offset)
 	return result;
 };
 
-struct ControlMessage
-{
-	uint16_t x, y, z, r;
-} __attribute__((packed));
+// Define message uavlink
+typedef struct __uavlink_message_t {
+	uint32_t 	msgid;
+	uint64_t	payload64;
+} uavlink_message_t;
+
+typedef struct __uavlink_state_t {
+	int8_t 		connected;
+	int8_t 		armed;
+	int8_t 		mode;
+	int8_t 		battery_remaining;
+} uavlink_state_t;
+
+typedef struct __uavlink_global_position_int_t {
+	int32_t 	lat; /*< [degE7] Latitude, expressed*/
+	int32_t 	lon; /*< [degE7] Longitude, expressed*/
+	float 		alt; /*< [m] Subcribe from /mavros/global_position/local -> z */
+	float		vx;
+	float		vy;
+	float		vz;
+} uavlink_global_position_int_t;
+
+
