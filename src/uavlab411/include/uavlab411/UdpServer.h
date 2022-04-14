@@ -92,5 +92,5 @@ uint16_t uavlink_msg_to_send_buffer(uint8_t *buf, const uavlink_message_t *msg)
 	length = _mav_trim_payload(_MAV_PAYLOAD(msg), length);
 	buf[0] = msg->msgid;
 	memcpy(&buf[1], _MAV_PAYLOAD(msg), length);
-	return 1;
+	return length;
 }

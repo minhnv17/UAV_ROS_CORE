@@ -115,11 +115,21 @@ void handleState(const mavros_msgs::State& s)
 		state.armed != state.armed)
 	{
 		state = s;
+		uavlink_state_t send_state;
+		send_state.armed = s.armed;
+		send_state.connected = s.connected;
+		send_state.mode = 26;
+		send_state.battery_remaining = 80;
 
+		uavlink_message_t msg;
+		uavlink_state_encode(&msg, &send_state);
+
+		char buf[300];
+		unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
+		sendto(sockfd, (const char *)buf, strlen(buf), 0,
+				(const struct sockaddr *) &client_addr, client_addr_size);
 	}
-	// char buff[];
-
-	// handle_write_state()
+	
 }
 
 void init()
@@ -158,12 +168,13 @@ void readingSocketThread()
 	// Socket create
 	sockfd = createSocket(port);
 
-	ROS_INFO("UDP UdpSocket initialized on port %d", port);
+	ROS_INFO("UDP UdpSocket initialized on port dsfsd %d", port);
+	
 	// handle_msg_set_mode();
 	while (true) {
 		// read next UDP packet
 		int bsize = recvfrom(sockfd, &buff[0], sizeof(buff) - 1, 0, (sockaddr *) &client_addr, &client_addr_size);
-
+		
 		if (bsize < 0) {
 			ROS_ERROR("recvfrom() error: %s", strerror(errno));
 		}
@@ -183,24 +194,13 @@ void readingSocketThread()
 					handle_arm_disarm(buff);
 					break;
 				default:
-					
+					// test();
 					break;
 			}
 		}
 	}
 }
 
-void writingSocketThread()
-{
-	ros::Rate rating(1);
-	char buff[5] = {0};
-
-	while (true)
-	{
-		printf("sending data\n");
-		rating.sleep();
-	}
-}
 void handle_write_state(char buff[])
 {
 	sendto(sockfd, (const char *)buff, strlen(buff), 0, (const struct sockaddr *) &client_addr, client_addr_size);
@@ -209,7 +209,7 @@ int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "UdpSocket");
 	ros::NodeHandle nh, nh_priv("~");
-	
+
 	// param
 	nh_priv.param("port", port, 35602);
 
