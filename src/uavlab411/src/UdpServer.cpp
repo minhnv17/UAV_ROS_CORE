@@ -58,7 +58,6 @@ void handle_msg_set_mode(char buff[])
 
 void handle_arm_disarm(char buff[]) 
 {
-	ros::Rate r(10);
 	uint16_t new_action = ReadINT16(buff, 2);
 	ROS_INFO("This is timeout: %d", TIMEOUT(state, state_timeout));
 	if(!TIMEOUT(state, state_timeout) && !state.armed && new_action == 1) // Arming
@@ -73,15 +72,13 @@ void handle_arm_disarm(char buff[])
 
 		// wait until armed
 		while (ros::ok()) {
-			ros::spinOnce();
 			if (state.armed) {
 				break;
 			} else if (ros::Time::now() - start > arming_timeout) {
 				string report = "Arming timed out";
 				ROS_INFO("ARMING TIMEOUT... TRY AGAIN!!");
+				break;
 			}
-			ros::spinOnce();
-			r.sleep();
 		}
 	}
 	else if(!TIMEOUT(state, state_timeout) && state.armed && new_action == 0) // Disarming
@@ -161,7 +158,7 @@ void readingSocketThread()
 	// Socket create
 	sockfd = createSocket(port);
 
-	ROS_INFO("UDP UdpSocket initialized on port dsfsd %d", port);
+	ROS_INFO("UDP UdpSocket initialized on port %d", port);
 	
 	// handle_msg_set_mode();
 	while (true) {
