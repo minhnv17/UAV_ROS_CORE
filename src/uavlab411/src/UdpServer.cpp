@@ -79,7 +79,6 @@ void handle_arm_disarm(char buff[])
 			} else if (ros::Time::now() - start > arming_timeout) {
 				string report = "Arming timed out";
 				ROS_INFO("ARMING TIMEOUT... TRY AGAIN!!");
-				throw std::runtime_error(report);
 			}
 			ros::spinOnce();
 			r.sleep();
@@ -123,7 +122,6 @@ void handleState(const mavros_msgs::State& s)
 
 	char buf[300];
 	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
-	ROS_INFO("BUF: %d\n", buf[3]);
 	writeSocketMessage(buf);
 }
 
