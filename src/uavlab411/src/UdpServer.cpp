@@ -60,6 +60,7 @@ void handle_arm_disarm(char buff[])
 {
 	ros::Rate r(10);
 	uint16_t new_action = ReadINT16(buff, 2);
+	ROS_INFO("This is timeout: %d", TIMEOUT(state, state_timeout));
 	if(!TIMEOUT(state, state_timeout) && !state.armed && new_action == 1) // Arming
 	{
 		ros::Time start = ros::Time::now();
@@ -110,26 +111,20 @@ void handle_msg_manual_control(int bsize, char buff[])
 // Handle state from UAV
 void handleState(const mavros_msgs::State& s)
 {
-	if (state.connected != state.connected ||
-		state.mode != state.mode ||
-		state.armed != state.armed)
-	{
-		state = s;
-		uavlink_state_t send_state;
-		send_state.armed = s.armed;
-		send_state.connected = s.connected;
-		send_state.mode = 26;
-		send_state.battery_remaining = 80;
+	state = s;
+	uavlink_state_t send_state;
+	send_state.armed = s.armed;
+	send_state.connected = s.connected;
+	send_state.mode = 26;
+	send_state.battery_remaining = 80;
 
-		uavlink_message_t msg;
-		uavlink_state_encode(&msg, &send_state);
+	uavlink_message_t msg;
+	uavlink_state_encode(&msg, &send_state);
 
-		char buf[300];
-		unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
-		sendto(sockfd, (const char *)buf, strlen(buf), 0,
-				(const struct sockaddr *) &client_addr, client_addr_size);
-	}
-	
+	char buf[300];
+	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
+	ROS_INFO("BUF: %d\n", buf[3]);
+	writeSocketMessage(buf);
 }
 
 void init()
@@ -201,10 +196,17 @@ void readingSocketThread()
 	}
 }
 
-void handle_write_state(char buff[])
+void writeSocketMessage(char buff[])
 {
-	sendto(sockfd, (const char *)buff, strlen(buff), 0, (const struct sockaddr *) &client_addr, client_addr_size);
+	sockaddr_in client;
+	client.sin_family = AF_INET;
+	client.sin_port = htons(12345);
+	client.sin_addr.s_addr = INADDR_ANY;
+	socklen_t client_size = sizeof(client);
+
+	sendto(sockfd, (const char *)buff, strlen(buff), 0, (const struct sockaddr *) &client, client_size);
 }
+
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "UdpSocket");

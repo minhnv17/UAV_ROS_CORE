@@ -13,7 +13,7 @@ using std::string;
 string mode_define[] = {"POSCTL", "OFFBOARD", "AUTO.LAND"};
 
 void 			readingSocketThread();
-void 			writingSocketThread();
+void 			writeSocketMessage(char*);
 int  			createSocket(int);
 void 			handleState(const mavros_msgs::State&);
 void 			stateTimedOut(const ros::TimerEvent&);

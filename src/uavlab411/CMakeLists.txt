@@ -133,6 +133,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/uavlab411_node.cpp)
 add_executable(UdpServer src/UdpServer.cpp)
+add_executable(UdpClient src/UdpClient.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -144,6 +145,9 @@ add_executable(UdpServer src/UdpServer.cpp)
 # add_dependencies(hello hello_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
+target_link_libraries(UdpClient
+  ${catkin_LIBRARIES}
+)
 target_link_libraries(UdpServer
   ${catkin_LIBRARIES}
 )
