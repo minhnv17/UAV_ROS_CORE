@@ -38,7 +38,7 @@ ros::Subscriber state_sub;
 
 // Publisher
 ros::Publisher manual_control_pub;
-
+bool check_receiver = false;
 void handle_msg_set_mode(char buff[]) 
 {
 	uint16_t new_mode = ReadINT16(buff, 2);
@@ -58,9 +58,7 @@ void handle_msg_set_mode(char buff[])
 
 void handle_arm_disarm(char buff[]) 
 {
-	ros::Rate r(10);
 	uint16_t new_action = ReadINT16(buff, 2);
-	ROS_INFO("This is timeout: %d", TIMEOUT(state, state_timeout));
 	if(!TIMEOUT(state, state_timeout) && !state.armed && new_action == 1) // Arming
 	{
 		ros::Time start = ros::Time::now();
@@ -73,15 +71,13 @@ void handle_arm_disarm(char buff[])
 
 		// wait until armed
 		while (ros::ok()) {
-			ros::spinOnce();
 			if (state.armed) {
 				break;
 			} else if (ros::Time::now() - start > arming_timeout) {
 				string report = "Arming timed out";
 				ROS_INFO("ARMING TIMEOUT... TRY AGAIN!!");
+				break;
 			}
-			ros::spinOnce();
-			r.sleep();
 		}
 	}
 	else if(!TIMEOUT(state, state_timeout) && state.armed && new_action == 0) // Disarming
@@ -122,6 +118,7 @@ void handleState(const mavros_msgs::State& s)
 
 	char buf[300];
 	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
+	ROS_INFO("%d", buf[3]);
 	writeSocketMessage(buf);
 }
 //Handle Local Position from UAV
@@ -185,13 +182,14 @@ void readingSocketThread()
 	// Socket create
 	sockfd = createSocket(port);
 
-	ROS_INFO("UDP UdpSocket initialized on port dsfsd %d", port);
+	ROS_INFO("UDP UdpSocket initialized on port %d", port);
 	
 	// handle_msg_set_mode();
 	while (true) {
 		// read next UDP packet
 		int bsize = recvfrom(sockfd, &buff[0], sizeof(buff) - 1, 0, (sockaddr *) &client_addr, &client_addr_size);
-		
+		check_receiver = true;
+		ROS_INFO("NHAN DATA");
 		if (bsize < 0) {
 			ROS_ERROR("recvfrom() error: %s", strerror(errno));
 		}
@@ -220,13 +218,15 @@ void readingSocketThread()
 
 void writeSocketMessage(char buff[])
 {
-	sockaddr_in client;
-	client.sin_family = AF_INET;
-	client.sin_port = htons(12345);
-	client.sin_addr.s_addr = INADDR_ANY;
-	socklen_t client_size = sizeof(client);
-
-	sendto(sockfd, (const char *)buff, strlen(buff), 0, (const struct sockaddr *) &client, client_size);
+	// sockaddr_in client;
+	// client.sin_family = AF_INET;
+	// client.sin_port = htons(35602);
+	// client.sin_addr.s_addr = inet_addr("192.168.0.132");
+	// socklen_t client_size = sizeof(client);
+	if (check_receiver) // Need received first
+	{
+		sendto(sockfd, (const char *)buff, strlen(buff), 0, (const struct sockaddr *) &client_addr, client_addr_size);
+	}
 }
 
 int main(int argc, char **argv)
