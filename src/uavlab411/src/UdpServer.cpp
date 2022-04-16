@@ -12,6 +12,7 @@
 #include "nav_msgs/Odometry.h"
 #include "uavlab411/UdpServer.h"
 #include "sensor_msgs/NavSatFix.h"
+#include "sensor_msgs/BatteryState.h"
 /* ---- Global variable ---- */
 // Socket server
 int sockfd;
@@ -27,6 +28,7 @@ ros::Duration state_timeout;
 mavros_msgs::State state; // State robot
 mavros_msgs::ManualControl manual_control_msg; // Manual control msg
 sensor_msgs::NavSatFix global_msg; // message from topic "/mavros/global_position/global"
+sensor_msgs::BatteryState battery_msg; // message from /mavros/battery
 //param
 int port;
 
@@ -111,8 +113,10 @@ void handleState(const mavros_msgs::State& s)
 	uavlink_state_t send_state;
 	send_state.armed = s.armed;
 	send_state.connected = s.connected;
-	send_state.mode = 26;
-	send_state.battery_remaining = 80;
+	send_state.mode = mode_to_int(s.mode);
+	//ROS_INFO("%f", battery_msg.voltage);
+	send_state.battery_remaining = battery_remaining_calculate(battery_msg.voltage);
+	//ROS_INFO("%d", send_state.battery_remaining);
 
 	uavlink_message_t msg;
 	uavlink_state_encode(&msg, &send_state);
@@ -138,6 +142,8 @@ void handleLocalPosition(const nav_msgs::Odometry& o)
 	uavlink_global_position_encode(&msg,&global_pos);
 	char buf[300];
 	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
+// 	uavlink_global_position_int_t test;
+// 	uavlink_global_position_decode((uint8_t*)buf, &test);
 	writeSocketMessage(buf, len);
 }
 
@@ -146,7 +152,12 @@ void handleGlobalPosition(const sensor_msgs::NavSatFix& n)
 {
 	global_msg = n;
 }
-
+//Handle battery state from UAV
+void handle_Battery_State(const sensor_msgs::BatteryState& bat)
+{
+	battery_msg = bat;
+	
+}
 void init()
 {
 	// Thread for UDP soket read
@@ -240,6 +251,7 @@ int main(int argc, char **argv)
 	auto state_sub = nh.subscribe("mavros/state", 1, &handleState);
 	auto global_position_sub = nh.subscribe("/mavros/global_position/global",1,&handleGlobalPosition);
 	auto local_position_sub = nh.subscribe("/mavros/global_position/local",1,&handleLocalPosition);
+	auto battery_sub = nh.subscribe("/mavros/battery",1,&handle_Battery_State);
 	// Service client
 	set_mode = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
 	arming = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
