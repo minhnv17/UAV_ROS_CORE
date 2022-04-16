@@ -10,9 +10,11 @@
 #include "mavros_msgs/CommandBool.h"
 #include "mavros_msgs/SetMode.h"
 #include "nav_msgs/Odometry.h"
-#include "uavlab411/UdpServer.h"
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/BatteryState.h"
+
+#include "uavlab411/UdpServer.h"
+
 /* ---- Global variable ---- */
 // Socket server
 int sockfd;
@@ -29,6 +31,7 @@ mavros_msgs::State state; // State robot
 mavros_msgs::ManualControl manual_control_msg; // Manual control msg
 sensor_msgs::NavSatFix global_msg; // message from topic "/mavros/global_position/global"
 sensor_msgs::BatteryState battery_msg; // message from /mavros/battery
+
 //param
 int port;
 
@@ -196,13 +199,15 @@ void readingSocketThread()
 	while (true) {
 		// read next UDP packet
 		int bsize = recvfrom(sockfd, &buff[0], sizeof(buff) - 1, 0, (sockaddr *) &android_addr, &android_addr_size);
-		check_receiver = true;
+
 		if (bsize < 0) {
 			ROS_ERROR("recvfrom() error: %s", strerror(errno));
 		}
+
 		else {
-			uint16_t number = ReadINT16(buff, 0);
-			switch (number)
+			if(!check_receiver) check_receiver = true;
+			uint16_t msgid = ReadINT16(buff, 0);
+			switch (msgid)
 			{
 				case MAVLINK_MSG_ID_SET_MODE:
 					handle_msg_set_mode(buff);
@@ -215,8 +220,8 @@ void readingSocketThread()
 				case MAV_CMD_COMPONENT_ARM_DISARM:
 					handle_arm_disarm(buff);
 					break;
+
 				default:
-					// test();
 					break;
 			}
 		}
@@ -249,9 +254,10 @@ int main(int argc, char **argv)
 	
 	// Initial subscribe
 	auto state_sub = nh.subscribe("mavros/state", 1, &handleState);
-	auto global_position_sub = nh.subscribe("/mavros/global_position/global",1,&handleGlobalPosition);
-	auto local_position_sub = nh.subscribe("/mavros/global_position/local",1,&handleLocalPosition);
-	auto battery_sub = nh.subscribe("/mavros/battery",1,&handle_Battery_State);
+	auto global_position_sub = nh.subscribe("/mavros/global_position/global", 1, &handleGlobalPosition);
+	auto local_position_sub = nh.subscribe("/mavros/global_position/local", 1, &handleLocalPosition);
+	auto battery_sub = nh.subscribe("/mavros/battery", 1, &handle_Battery_State);
+
 	// Service client
 	set_mode = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
 	arming = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
