@@ -18,7 +18,7 @@ using std::string;
 string mode_define[] = {"POSCTL", "OFFBOARD", "AUTO.LAND"};
 
 void 			readingSocketThread();
-void 			writeSocketMessage(char*);
+void 			writeSocketMessage(char*, int);
 int  			createSocket(int);
 void 			handleState(const mavros_msgs::State&);
 void 			handle_Local_Position(const nav_msgs::Odometry&);
@@ -89,6 +89,15 @@ static inline uint16_t uavlink_state_encode(uavlink_message_t* msg, const uavlin
 	msg->len   = UAVLINK_MSG_ID_STATE_LEN;
 	return 1;
 }
+
+static inline void uavlink_state_decode(const uavlink_message_t* msg, uavlink_state_t* state)
+{
+
+	uint8_t len = msg->len < UAVLINK_MSG_ID_STATE_LEN? msg->len : UAVLINK_MSG_ID_STATE_LEN;
+	memset(state, 0, UAVLINK_MSG_ID_STATE_LEN);
+    memcpy(state, _MAV_PAYLOAD(msg), len);
+}
+
 static inline uint16_t uavlink_global_position_encode(uavlink_message_t* msg, const uavlink_global_position_int_t* uavlink_global_position)
 {
 	uavlink_global_position_int_t packet;
@@ -103,12 +112,13 @@ static inline uint16_t uavlink_global_position_encode(uavlink_message_t* msg, co
 	msg->len = UAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN;
 	return 1;
 }
+
 static inline void uavlink_global_position_decode(uint8_t* buf, uavlink_global_position_int_t* uavlink_global_position)
 {
-    
     memset(uavlink_global_position, 0, UAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN);
     memcpy(uavlink_global_position, buf+1, UAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN);
 }
+
 // Message helper define
 uint8_t _mav_trim_payload(const char *payload, uint8_t length)
 {

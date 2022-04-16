@@ -16,8 +16,8 @@
 /* ---- Global variable ---- */
 // Socket server
 int sockfd;
-sockaddr_in client_addr;
-socklen_t client_addr_size = sizeof(client_addr);
+sockaddr_in android_addr;
+socklen_t android_addr_size = sizeof(android_addr);
 
 // Timing
 ros::Timer state_timeout_timer; // Check timeout connecting
@@ -41,6 +41,7 @@ ros::Subscriber state_sub;
 // Publisher
 ros::Publisher manual_control_pub;
 bool check_receiver = false;
+
 void handle_msg_set_mode(char buff[]) 
 {
 	uint16_t new_mode = ReadINT16(buff, 2);
@@ -122,9 +123,9 @@ void handleState(const mavros_msgs::State& s)
 
 	char buf[300];
 	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
-	//ROS_INFO("%d", buf[3]);
-	writeSocketMessage(buf);
+	writeSocketMessage(buf, len);
 }
+
 //Handle Local Position from UAV
 void handleLocalPosition(const nav_msgs::Odometry& o)
 {
@@ -141,11 +142,11 @@ void handleLocalPosition(const nav_msgs::Odometry& o)
 	uavlink_global_position_encode(&msg,&global_pos);
 	char buf[300];
 	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
-	uavlink_global_position_int_t test;
-	uavlink_global_position_decode((uint8_t*)buf, &test);
-	//ROS_INFO("%f", test.alt);
-	writeSocketMessage(buf);
+// 	uavlink_global_position_int_t test;
+// 	uavlink_global_position_decode((uint8_t*)buf, &test);
+	writeSocketMessage(buf, len);
 }
+
 //Handle global Posotion from UAV
 void handleGlobalPosition(const sensor_msgs::NavSatFix& n)
 {
@@ -162,10 +163,6 @@ void init()
 	// Thread for UDP soket read
 	std::thread readThread(&readingSocketThread);
 	readThread.detach();
-
-	// Thread for UDP socket write
-	// std::thread writeThread(&writingSocketThread);
-	// writeThread.detach();
 }
 
 int createSocket(int port)
@@ -198,9 +195,8 @@ void readingSocketThread()
 	// handle_msg_set_mode();
 	while (true) {
 		// read next UDP packet
-		int bsize = recvfrom(sockfd, &buff[0], sizeof(buff) - 1, 0, (sockaddr *) &client_addr, &client_addr_size);
+		int bsize = recvfrom(sockfd, &buff[0], sizeof(buff) - 1, 0, (sockaddr *) &android_addr, &android_addr_size);
 		check_receiver = true;
-		ROS_INFO("NHAN DATA");
 		if (bsize < 0) {
 			ROS_ERROR("recvfrom() error: %s", strerror(errno));
 		}
@@ -227,7 +223,7 @@ void readingSocketThread()
 	}
 }
 
-void writeSocketMessage(char buff[])
+void writeSocketMessage(char buff[], int length)
 {
 	// sockaddr_in client;
 	// client.sin_family = AF_INET;
@@ -236,7 +232,7 @@ void writeSocketMessage(char buff[])
 	// socklen_t client_size = sizeof(client);
 	if (check_receiver) // Need received first
 	{
-		sendto(sockfd, (const char *)buff, strlen(buff), 0, (const struct sockaddr *) &client_addr, client_addr_size);
+		sendto(sockfd, (const char *)buff, strlen(buff), 0, (const struct sockaddr *) &android_addr, android_addr_size);
 	}
 }
 
