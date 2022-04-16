@@ -9,9 +9,9 @@
 #include "mavros_msgs/ManualControl.h"
 #include "mavros_msgs/CommandBool.h"
 #include "mavros_msgs/SetMode.h"
-
+#include "nav_msgs/Odometry.h"
 #include "uavlab411/UdpServer.h"
-
+#include "sensor_msgs/NavSatFix.h"
 /* ---- Global variable ---- */
 // Socket server
 int sockfd;
@@ -26,7 +26,7 @@ ros::Duration state_timeout;
 // ROS Message
 mavros_msgs::State state; // State robot
 mavros_msgs::ManualControl manual_control_msg; // Manual control msg
-
+sensor_msgs::NavSatFix global_msg; // message from topic "/mavros/global_position/global"
 //param
 int port;
 
@@ -39,6 +39,7 @@ ros::Subscriber state_sub;
 // Publisher
 ros::Publisher manual_control_pub;
 bool check_receiver = false;
+
 void handle_msg_set_mode(char buff[]) 
 {
 	uint16_t new_mode = ReadINT16(buff, 2);
@@ -119,6 +120,31 @@ void handleState(const mavros_msgs::State& s)
 	char buf[300];
 	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
 	writeSocketMessage(buf, len);
+}
+
+//Handle Local Position from UAV
+void handleLocalPosition(const nav_msgs::Odometry& o)
+{
+	uavlink_global_position_int_t global_pos;
+	global_pos.vx = o.twist.twist.linear.x;
+	global_pos.vy = o.twist.twist.linear.y;
+	global_pos.vz = o.twist.twist.linear.z;
+	//get data from global_position
+	global_pos.alt = o.pose.pose.position.z;
+	global_pos.lat = (int32_t)(global_msg.latitude*10000000);
+	global_pos.lon = (int32_t)(global_msg.longitude*10000000);
+
+	uavlink_message_t msg;
+	uavlink_global_position_encode(&msg,&global_pos);
+	char buf[300];
+	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
+	writeSocketMessage(buf, len);
+}
+
+//Handle global Posotion from UAV
+void handleGlobalPosition(const sensor_msgs::NavSatFix& n)
+{
+	global_msg = n;
 }
 
 void init()
@@ -212,7 +238,8 @@ int main(int argc, char **argv)
 	
 	// Initial subscribe
 	auto state_sub = nh.subscribe("mavros/state", 1, &handleState);
-
+	auto global_position_sub = nh.subscribe("/mavros/global_position/global",1,&handleGlobalPosition);
+	auto local_position_sub = nh.subscribe("/mavros/global_position/local",1,&handleLocalPosition);
 	// Service client
 	set_mode = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
 	arming = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");

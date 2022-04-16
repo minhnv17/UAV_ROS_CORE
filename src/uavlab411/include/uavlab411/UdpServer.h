@@ -1,5 +1,7 @@
 #include "ros/ros.h"
 #include "mavros_msgs/State.h"
+#include "nav_msgs/Odometry.h"
+#include "sensor_msgs/NavSatFix.h"
 #include "std_msgs/String.h"
 #include <string>
 
@@ -16,6 +18,8 @@ void 			readingSocketThread();
 void 			writeSocketMessage(char*, int);
 int  			createSocket(int);
 void 			handleState(const mavros_msgs::State&);
+void 			handle_Local_Position(const nav_msgs::Odometry&);
+void 			handle_Global_Position(const sensor_msgs::NavSatFix&);
 void 			stateTimedOut(const ros::TimerEvent&);
 
 // Function handle receiver msg
@@ -24,7 +28,7 @@ void 			handle_msg_manual_control(int bsize, char buff[]);
 void 			handle_arm_disarm(char buff[]);
 
 // Function handle send msg
-void handle_write_state(char buff[]);
+void handle_Write_State(char buff[]);
 
 // Working byte library
 inline int16_t ReadINT16(char *ByteArray, int32_t Offset)
@@ -34,6 +38,12 @@ inline int16_t ReadINT16(char *ByteArray, int32_t Offset)
 	return result;
 };
 
+inline int32_t ReadINT32(char *ByteArray, int32_t Offset)
+{
+	int32_t result;
+	memcpy(&result, ByteArray+Offset, sizeof(int32_t));
+	return result;
+};
 // Define message uavlink
 typedef struct __uavlink_message_t {
 	uint8_t 	msgid;
@@ -83,6 +93,21 @@ static inline void uavlink_state_decode(const uavlink_message_t* msg, uavlink_st
 	uint8_t len = msg->len < UAVLINK_MSG_ID_STATE_LEN? msg->len : UAVLINK_MSG_ID_STATE_LEN;
 	memset(state, 0, UAVLINK_MSG_ID_STATE_LEN);
     memcpy(state, _MAV_PAYLOAD(msg), len);
+}
+
+static inline uint16_t uavlink_global_position_encode(uavlink_message_t* msg, const uavlink_global_position_int_t* uavlink_global_position)
+{
+	uavlink_global_position_int_t packet;
+	packet.alt = uavlink_global_position->alt;
+	packet.lat = uavlink_global_position->lat;
+	packet.lon = uavlink_global_position->lon;
+	packet.vx = uavlink_global_position->vx;
+	packet.vy = uavlink_global_position->vy;
+	packet.vz = uavlink_global_position->vz;
+	memcpy(_MAV_PAYLOAD_NON_CONST(msg),&packet,UAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN);
+	msg->msgid = UAVLINK_MSG_ID_GLOBAL_POSITION_INT;
+	msg->len = UAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN;
+	return 1;
 }
 
 // Message helper define
