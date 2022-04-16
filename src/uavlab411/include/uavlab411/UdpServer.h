@@ -13,7 +13,7 @@ using std::string;
 string mode_define[] = {"POSCTL", "OFFBOARD", "AUTO.LAND"};
 
 void 			readingSocketThread();
-void 			writeSocketMessage(char*);
+void 			writeSocketMessage(char*, int);
 int  			createSocket(int);
 void 			handleState(const mavros_msgs::State&);
 void 			stateTimedOut(const ros::TimerEvent&);
@@ -75,6 +75,14 @@ static inline uint16_t uavlink_state_encode(uavlink_message_t* msg, const uavlin
 	msg->msgid = UAVLINK_MSG_ID_STATE;
 	msg->len   = UAVLINK_MSG_ID_STATE_LEN;
 	return 1;
+}
+
+static inline void uavlink_state_decode(const uavlink_message_t* msg, uavlink_state_t* state)
+{
+
+	uint8_t len = msg->len < UAVLINK_MSG_ID_STATE_LEN? msg->len : UAVLINK_MSG_ID_STATE_LEN;
+	memset(state, 0, UAVLINK_MSG_ID_STATE_LEN);
+    memcpy(state, _MAV_PAYLOAD(msg), len);
 }
 
 // Message helper define
