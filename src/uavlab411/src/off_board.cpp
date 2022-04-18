@@ -9,9 +9,6 @@ OffBoard::OffBoard()
             ("mavros/state", 1, &OffBoard::handleState, this);
     sub_cmd_vel = nh.subscribe<geometry_msgs::Twist>
             ("/cmd_vel", 20, &OffBoard::handleCmdVel, this);
-
-    local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
-            ("mavros/setpoint_position/local", 10);
     pub_cmd_vel = nh.advertise<geometry_msgs::Twist>
             ("mavros/setpoint_velocity/cmd_vel_unstamped", 20);
 
@@ -33,6 +30,7 @@ void OffBoard::handleState(const mavros_msgs::State::ConstPtr& msg)
 
 void OffBoard::handleCmdVel(const geometry_msgs::Twist::ConstPtr& msg)
 {
+    // Todo: check last message -> if timeout -> switch to mode hold
     if(cur_state.armed)
     {
         // new_cmd_vel = *msg;
@@ -43,13 +41,11 @@ void OffBoard::handleCmdVel(const geometry_msgs::Twist::ConstPtr& msg)
 void OffBoard::offboardAndArm()
 {
     ros::Rate r(10);
-    geometry_msgs::PoseStamped pose;
-    pose.pose.position.x = 0;
-    pose.pose.position.y = 0;
-    pose.pose.position.z = 2;
+    geometry_msgs::Twist zero_cmd_vel;
+
     //send a few setpoints before starting
     for(int i = 100; ros::ok() && i > 0; --i){
-        local_pos_pub.publish(pose);
+        pub_cmd_vel.publish(zero_cmd_vel);
         ros::spinOnce();
         r.sleep();
     }
@@ -81,11 +77,17 @@ void OffBoard::offboardAndArm()
             }
         }
 
-        local_pos_pub.publish(pose);
+        pub_cmd_vel.publish(zero_cmd_vel);
 
         ros::spinOnce();
         r.sleep();
     }
+}
+
+void OffBoard::holdPositon()
+{
+    // Todo: writing hold mode
+    // Get local position and publish is a one of most solution
 }
 
 int main(int argc, char **argv)

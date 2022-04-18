@@ -17,7 +17,6 @@ class OffBoard
         ros::NodeHandle nh;
         // Publisher
         ros::Publisher pub_cmd_vel;
-        ros::Publisher local_pos_pub;
 
         // Subscriber
         ros::Subscriber sub_state;
@@ -32,10 +31,10 @@ class OffBoard
 
         // Main function
         void offboardAndArm();
+        void holdPositon();
         void servive();
 
         // Variable
         mavros_msgs::State cur_state;
         geometry_msgs::Twist new_cmd_vel;
-        geometry_msgs::PoseStamped pose;
 };
