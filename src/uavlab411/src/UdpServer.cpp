@@ -114,7 +114,8 @@ void handleState(const mavros_msgs::State& s)
 	send_state.armed = s.armed;
 	send_state.connected = s.connected;
 	send_state.mode = mode_to_int(s.mode);
-	//ROS_INFO("%f", battery_msg.voltage);
+	//ROS_INFO("mode : %d",send_state.mode);
+	//ROS_INFO("vol : %f", battery_msg.voltage);
 	send_state.battery_remaining = battery_remaining_calculate(battery_msg.voltage);
 	//ROS_INFO("%d", send_state.battery_remaining);
 
@@ -129,22 +130,47 @@ void handleState(const mavros_msgs::State& s)
 //Handle Local Position from UAV
 void handleLocalPosition(const nav_msgs::Odometry& o)
 {
+	ros::Rate r(2);
 	uavlink_global_position_int_t global_pos;
-	global_pos.vx = o.twist.twist.linear.x;
-	global_pos.vy = o.twist.twist.linear.y;
-	global_pos.vz = o.twist.twist.linear.z;
+	global_pos.vx = (float)o.twist.twist.linear.x;
+	global_pos.vy = (float)o.twist.twist.linear.y;
+	global_pos.vz = (float)o.twist.twist.linear.z;
+	
+	// global_pos.vx = 1.2;
+	// global_pos.vy = 2.6;
+	// global_pos.vz = 0.5;
 	//get data from global_position
-	global_pos.alt = o.pose.pose.position.z;
+	global_pos.alt = (float)o.pose.pose.position.z;
+	// global_pos.alt = 1;
 	global_pos.lat = (int32_t)(global_msg.latitude*10000000);
 	global_pos.lon = (int32_t)(global_msg.longitude*10000000);
-
+	// global_pos.vx = 17;
+	// global_pos.vy = 17;
+	// global_pos.vz = 17;
+	// //get data from global_position
+	// global_pos.alt = 17;
+	// global_pos.lat = 17;
+	// global_pos.lon = 17;
 	uavlink_message_t msg;
 	uavlink_global_position_encode(&msg,&global_pos);
 	char buf[300];
 	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
-// 	uavlink_global_position_int_t test;
-// 	uavlink_global_position_decode((uint8_t*)buf, &test);
+	printf("\n");
+	for (int i =0 ;i<25;i++)
+	{
+	   printf("%d, ",buf[i]);
+	}
+ 	uavlink_global_position_int_t test;
+ 	uavlink_global_position_decode((uint8_t*)buf, &test);
+	// ROS_INFO("\n\n\nlat: %d", test.lat);
+	// ROS_INFO("lon: %d", test.lon);
+	// ROS_INFO("alt: %f", test.alt);
+	// ROS_INFO("vx: %f", test.vx);
+	// ROS_INFO("vy: %f", test.vy);
+	// ROS_INFO("vz: %f", test.vz);
+	// ROS_INFO("LEN: %d", len);
 	writeSocketMessage(buf, len);
+	r.sleep();
 }
 
 //Handle global Posotion from UAV
@@ -232,7 +258,8 @@ void writeSocketMessage(char buff[], int length)
 	// socklen_t client_size = sizeof(client);
 	if (check_receiver) // Need received first
 	{
-		sendto(sockfd, (const char *)buff, strlen(buff), 0, (const struct sockaddr *) &android_addr, android_addr_size);
+		int len = sendto(sockfd, (const char *)buff, length + 1, 0, (const struct sockaddr *) &android_addr, android_addr_size);
+		// ROS_INFO("%d", len);
 	}
 }
 

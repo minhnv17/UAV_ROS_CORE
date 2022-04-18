@@ -143,8 +143,16 @@ int8_t battery_remaining_calculate(float voltage)
 uint16_t uavlink_msg_to_send_buffer(uint8_t *buf, const uavlink_message_t *msg)
 {
 	uint8_t length = msg->len;
-	length = _mav_trim_payload(_MAV_PAYLOAD(msg), length);
+	//length = _mav_trim_payload(_MAV_PAYLOAD(msg), length);
 	buf[0] = msg->msgid;
+	switch(msg->msgid){
+		case UAVLINK_MSG_ID_STATE:
+			length = UAVLINK_MSG_ID_STATE_LEN; break;
+		case UAVLINK_MSG_ID_GLOBAL_POSITION_INT:
+			length = UAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN; break;
+		default: 
+			length = 0; break;
+	}
 	memcpy(&buf[1], _MAV_PAYLOAD(msg), length);
 	return length;
 }
