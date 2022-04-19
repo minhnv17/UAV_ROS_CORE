@@ -117,9 +117,7 @@ void handleState(const mavros_msgs::State& s)
 	send_state.armed = s.armed;
 	send_state.connected = s.connected;
 	send_state.mode = mode_to_int(s.mode);
-	//ROS_INFO("%f", battery_msg.voltage);
 	send_state.battery_remaining = battery_remaining_calculate(battery_msg.voltage);
-	//ROS_INFO("%d", send_state.battery_remaining);
 
 	uavlink_message_t msg;
 	uavlink_state_encode(&msg, &send_state);
@@ -145,8 +143,6 @@ void handleLocalPosition(const nav_msgs::Odometry& o)
 	uavlink_global_position_encode(&msg,&global_pos);
 	char buf[300];
 	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
-// 	uavlink_global_position_int_t test;
-// 	uavlink_global_position_decode((uint8_t*)buf, &test);
 	writeSocketMessage(buf, len);
 }
 
@@ -230,11 +226,6 @@ void readingSocketThread()
 
 void writeSocketMessage(char buff[], int length)
 {
-	// sockaddr_in client;
-	// client.sin_family = AF_INET;
-	// client.sin_port = htons(35602);
-	// client.sin_addr.s_addr = inet_addr("192.168.0.132");
-	// socklen_t client_size = sizeof(client);
 	if (check_receiver) // Need received first
 	{
 		sendto(sockfd, (const char *)buff, strlen(buff), 0, (const struct sockaddr *) &android_addr, android_addr_size);
