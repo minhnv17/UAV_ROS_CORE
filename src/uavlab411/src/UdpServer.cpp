@@ -13,6 +13,8 @@
 #include "uavlab411/UdpServer.h"
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/BatteryState.h"
+#include "uavlab411/control_robot_msg.h"
+
 /* ---- Global variable ---- */
 // Socket server
 int sockfd;
@@ -25,8 +27,10 @@ ros::Duration arming_timeout;
 ros::Duration state_timeout;
 
 // ROS Message
+uavlab411::control_robot_msg msg_robot;
 mavros_msgs::State state; // State robot
 mavros_msgs::ManualControl manual_control_msg; // Manual control msg
+// mavros_msgs::ManualControl control_robot_msg;
 sensor_msgs::NavSatFix global_msg; // message from topic "/mavros/global_position/global"
 sensor_msgs::BatteryState battery_msg; // message from /mavros/battery
 //param
@@ -40,8 +44,16 @@ ros::Subscriber state_sub;
 
 // Publisher
 ros::Publisher manual_control_pub;
+ros::Publisher control_robot_pub;
 bool check_receiver = false;
 
+void handle_msg_control_robot(char buff[])
+{
+	msg_robot.step1 = ReadINT16(buff,2);
+	msg_robot.step2 = ReadINT16(buff,4);
+	msg_robot.tongs = ReadINT16(buff,6);
+	control_robot_pub.publish(msg_robot);
+}
 void handle_msg_set_mode(char buff[]) 
 {
 	uint16_t new_mode = ReadINT16(buff, 2);
@@ -222,12 +234,14 @@ void readingSocketThread()
 	while (true) {
 		// read next UDP packet
 		int bsize = recvfrom(sockfd, &buff[0], sizeof(buff) - 1, 0, (sockaddr *) &android_addr, &android_addr_size);
+		
 		check_receiver = true;
 		if (bsize < 0) {
 			ROS_ERROR("recvfrom() error: %s", strerror(errno));
 		}
 		else {
 			uint16_t number = ReadINT16(buff, 0);
+			ROS_INFO("%d",number);
 			switch (number)
 			{
 				case MAVLINK_MSG_ID_SET_MODE:
@@ -240,6 +254,9 @@ void readingSocketThread()
 
 				case MAV_CMD_COMPONENT_ARM_DISARM:
 					handle_arm_disarm(buff);
+					break;
+				case CONTROL_ROBOT_MSG_ID:
+					handle_msg_control_robot(buff);
 					break;
 				default:
 					// test();
@@ -273,7 +290,7 @@ int main(int argc, char **argv)
 
 	// Initial publisher
 	manual_control_pub = nh.advertise<mavros_msgs::ManualControl>("mavros/manual_control/send", 1);
-	
+	control_robot_pub = nh.advertise<uavlab411::control_robot_msg>("control_robot",1);
 	// Initial subscribe
 	auto state_sub = nh.subscribe("mavros/state", 1, &handleState);
 	auto global_position_sub = nh.subscribe("/mavros/global_position/global",1,&handleGlobalPosition);
