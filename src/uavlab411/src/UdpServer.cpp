@@ -12,8 +12,9 @@
 #include "nav_msgs/Odometry.h"
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/BatteryState.h"
-
+#include "uavlab411/control_robot_msg.h"
 #include "uavlab411/UdpServer.h"
+
 
 /* ---- Global variable ---- */
 // Socket server
@@ -27,8 +28,10 @@ ros::Duration arming_timeout;
 ros::Duration state_timeout;
 
 // ROS Message
+uavlab411::control_robot_msg msg_robot;
 mavros_msgs::State state; // State robot
 mavros_msgs::ManualControl manual_control_msg; // Manual control msg
+// mavros_msgs::ManualControl control_robot_msg;
 sensor_msgs::NavSatFix global_msg; // message from topic "/mavros/global_position/global"
 sensor_msgs::BatteryState battery_msg; // message from /mavros/battery
 
@@ -43,8 +46,16 @@ ros::Subscriber state_sub;
 
 // Publisher
 ros::Publisher manual_control_pub;
+ros::Publisher control_robot_pub;
 bool check_receiver = false;
 
+void handle_msg_control_robot(char buff[])
+{
+	msg_robot.step1 = ReadINT16(buff,2);
+	msg_robot.step2 = ReadINT16(buff,4);
+	msg_robot.tongs = ReadINT16(buff,6);
+	control_robot_pub.publish(msg_robot);
+}
 void handle_msg_set_mode(char buff[]) 
 {
 	uint16_t new_mode = ReadINT16(buff, 2);
@@ -130,20 +141,33 @@ void handleState(const mavros_msgs::State& s)
 //Handle Local Position from UAV
 void handleLocalPosition(const nav_msgs::Odometry& o)
 {
+	ros::Rate r(2);
 	uavlink_global_position_int_t global_pos;
-	global_pos.vx = o.twist.twist.linear.x;
-	global_pos.vy = o.twist.twist.linear.y;
-	global_pos.vz = o.twist.twist.linear.z;
+	global_pos.vx = (float)o.twist.twist.linear.x;
+	global_pos.vy = (float)o.twist.twist.linear.y;
+	global_pos.vz = (float)o.twist.twist.linear.z;
+	
+	// global_pos.vx = 1.2;
+	// global_pos.vy = 2.6;
+	// global_pos.vz = 0.5;
 	//get data from global_position
-	global_pos.alt = o.pose.pose.position.z;
+	global_pos.alt = (float)o.pose.pose.position.z;
+	// global_pos.alt = 1;
 	global_pos.lat = (int32_t)(global_msg.latitude*10000000);
 	global_pos.lon = (int32_t)(global_msg.longitude*10000000);
-
+	// global_pos.vx = 17;
+	// global_pos.vy = 17;
+	// global_pos.vz = 17;
+	// //get data from global_position
+	// global_pos.alt = 17;
+	// global_pos.lat = 17;
+	// global_pos.lon = 17;
 	uavlink_message_t msg;
 	uavlink_global_position_encode(&msg,&global_pos);
 	char buf[300];
 	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
 	writeSocketMessage(buf, len);
+	r.sleep();
 }
 
 //Handle global Posotion from UAV
@@ -194,12 +218,11 @@ void readingSocketThread()
 	// handle_msg_set_mode();
 	while (true) {
 		// read next UDP packet
-		int bsize = recvfrom(sockfd, &buff[0], sizeof(buff) - 1, 0, (sockaddr *) &android_addr, &android_addr_size);
-
+		int bsize = recvfrom(sockfd, &buff[0], sizeof(buff) - 1, 0, (sockaddr *) &android_addr, &android_addr_size);	
+		check_receiver = true;
 		if (bsize < 0) {
 			ROS_ERROR("recvfrom() error: %s", strerror(errno));
 		}
-
 		else {
 			if(!check_receiver) check_receiver = true;
 			uint16_t msgid = ReadINT16(buff, 0);
@@ -216,7 +239,9 @@ void readingSocketThread()
 				case MAV_CMD_COMPONENT_ARM_DISARM:
 					handle_arm_disarm(buff);
 					break;
-
+				case CONTROL_ROBOT_MSG_ID:
+					handle_msg_control_robot(buff);
+					break;
 				default:
 					break;
 			}
@@ -228,7 +253,8 @@ void writeSocketMessage(char buff[], int length)
 {
 	if (check_receiver) // Need received first
 	{
-		sendto(sockfd, (const char *)buff, strlen(buff), 0, (const struct sockaddr *) &android_addr, android_addr_size);
+		int len = sendto(sockfd, (const char *)buff, length + 1, 0, (const struct sockaddr *) &android_addr, android_addr_size);
+		// ROS_INFO("%d", len);
 	}
 }
 
@@ -242,7 +268,7 @@ int main(int argc, char **argv)
 
 	// Initial publisher
 	manual_control_pub = nh.advertise<mavros_msgs::ManualControl>("mavros/manual_control/send", 1);
-	
+	control_robot_pub = nh.advertise<uavlab411::control_robot_msg>("control_robot",1);
 	// Initial subscribe
 	auto state_sub = nh.subscribe("mavros/state", 1, &handleState);
 	auto global_position_sub = nh.subscribe("/mavros/global_position/global", 1, &handleGlobalPosition);

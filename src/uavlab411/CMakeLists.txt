@@ -9,6 +9,8 @@ project(uavlab411)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  message_generation
+  tf
   geometry_msgs
 )
 
@@ -39,18 +41,17 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add "message_generation" and every package in MSG_DEP_SET to
 ##     find_package(catkin REQUIRED COMPONENTS ...)
 ##   * add "message_runtime" and every package in MSG_DEP_SET to
-##     catkin_package(CATKIN_DEPENDS ...)
+
 ##   * uncomment the add_*_files sections below as needed
 ##     and list every .msg/.srv/.action file to be processed
 ##   * uncomment the generate_messages entry below
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  control_robot_msg.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -67,11 +68,11 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs  # Or other packages containing msgs
-# )
-
+generate_messages(
+  DEPENDENCIES
+  std_msgs  # Or other packages containing msgs
+)
+catkin_package(CATKIN_DEPENDS message_runtime)
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
 ################################################
@@ -134,6 +135,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/uavlab411_node.cpp)
 add_executable(UdpServer src/UdpServer.cpp)
+add_executable(Localization src/Localization.cpp)
 add_executable(off_board src/off_board.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -146,6 +148,9 @@ add_executable(off_board src/off_board.cpp)
 # add_dependencies(hello hello_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
+target_link_libraries(Localization
+  ${catkin_LIBRARIES}
+)
 target_link_libraries(UdpServer
   ${catkin_LIBRARIES}
 )

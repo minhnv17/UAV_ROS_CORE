@@ -8,6 +8,7 @@
 
 using std::string;
 
+#define CONTROL_ROBOT_MSG_ID 450
 #define MAVLINK_MSG_ID_MANUAL_CONTROL 69
 #define MAVLINK_MSG_ID_SET_MODE 11
 #define MAV_CMD_COMPONENT_ARM_DISARM 400
@@ -29,11 +30,17 @@ void 			handle_Battery_State(const sensor_msgs::BatteryState&);
 void 			handle_msg_set_mode(char buff[]);
 void 			handle_msg_manual_control(int bsize, char buff[]);
 void 			handle_arm_disarm(char buff[]);
-
+void 			handle_msg_control_robot(char buff[]);
 // Function handle send msg
 void handle_Write_State(char buff[]);
 
 // Working byte library
+inline int8_t ReadINT8(char *ByteArray, int32_t Offset)
+{
+	int8_t result;
+	memcpy(&result, ByteArray+Offset, sizeof(int8_t));
+	return result;
+};
 inline int16_t ReadINT16(char *ByteArray, int32_t Offset)
 {
 	int16_t result;
@@ -145,8 +152,16 @@ int8_t battery_remaining_calculate(float voltage)
 uint16_t uavlink_msg_to_send_buffer(uint8_t *buf, const uavlink_message_t *msg)
 {
 	uint8_t length = msg->len;
-	length = _mav_trim_payload(_MAV_PAYLOAD(msg), length);
+	//length = _mav_trim_payload(_MAV_PAYLOAD(msg), length);
 	buf[0] = msg->msgid;
+	switch(msg->msgid){
+		case UAVLINK_MSG_ID_STATE:
+			length = UAVLINK_MSG_ID_STATE_LEN; break;
+		case UAVLINK_MSG_ID_GLOBAL_POSITION_INT:
+			length = UAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN; break;
+		default: 
+			length = 0; break;
+	}
 	memcpy(&buf[1], _MAV_PAYLOAD(msg), length);
 	return length;
 }
