@@ -1,99 +1,109 @@
 #include "uavlab411/Off_board.h"
-#include <mavros_msgs/State.h>
-#include <mavros_msgs/SetMode.h>
-#include <mavros_msgs/CommandBool.h>
 
 OffBoard::OffBoard()
 {
-    sub_state = nh.subscribe<mavros_msgs::State>
-            ("mavros/state", 1, &OffBoard::handleState, this);
-    sub_cmd_vel = nh.subscribe<geometry_msgs::Twist>
-            ("/cmd_vel", 20, &OffBoard::handleCmdVel, this);
-    pub_cmd_vel = nh.advertise<geometry_msgs::Twist>
-            ("mavros/setpoint_velocity/cmd_vel_unstamped", 20);
+    sub_state = nh.subscribe<mavros_msgs::State>("mavros/state", 1, &OffBoard::handleState, this);
+    pub_setpoint = nh.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 20);
 
-    srv_arming = nh.serviceClient<mavros_msgs::CommandBool>
-            ("mavros/cmd/arming");
-    srv_takeoff = nh.serviceClient<mavros_msgs::CommandBool>
-            ("mavros/cmd/takeoff");
-    srv_set_mode = nh.serviceClient<mavros_msgs::SetMode>
-            ("mavros/set_mode");
+    srv_arming = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
+    srv_set_mode = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
 
-    offboardAndArm();
+    navigate_srv = nh.advertiseService("uavnavigate", &OffBoard::Navigate, this);
 
+    stream_point();
 }
 
-void OffBoard::handleState(const mavros_msgs::State::ConstPtr& msg)
+void OffBoard::handleState(const mavros_msgs::State::ConstPtr &msg)
 {
     cur_state = *msg;
-}
-
-void OffBoard::handleCmdVel(const geometry_msgs::Twist::ConstPtr& msg)
-{
-    // Todo: check last message -> if timeout -> switch to mode hold
-    if(cur_state.armed)
-    {
-        // new_cmd_vel = *msg;
-        pub_cmd_vel.publish(*msg);
-    }
 }
 
 void OffBoard::offboardAndArm()
 {
     ros::Rate r(10);
-    geometry_msgs::Twist zero_cmd_vel;
 
-    //send a few setpoints before starting
-    for(int i = 100; ros::ok() && i > 0; --i){
-        pub_cmd_vel.publish(zero_cmd_vel);
-        ros::spinOnce();
-        r.sleep();
+    if (cur_state.mode != "OFFBOARD")
+    {
+        auto start = ros::Time::now();
+        ROS_INFO("switch to OFFBOARD");
+        static mavros_msgs::SetMode sm;
+        sm.request.custom_mode = "OFFBOARD";
+
+        if (!srv_set_mode.call(sm))
+            throw std::runtime_error("Error calling set_mode service");
+
+        // wait for OFFBOARD mode
+        while (ros::ok())
+        {
+            ros::spinOnce();
+            if (cur_state.mode == "OFFBOARD")
+            {
+                break;
+            }
+            else if (ros::Time::now() - start > ros::Duration(3))
+            {
+                throw std::runtime_error("Offboard timeout!");
+            }
+            ros::spinOnce();
+            r.sleep();
+        }
     }
 
-	mavros_msgs::SetMode offb_set_mode;
-    offb_set_mode.request.custom_mode = "OFFBOARD";
+    if (!cur_state.armed) {
+		ros::Time start = ros::Time::now();
+		ROS_INFO("arming");
+		mavros_msgs::CommandBool srv;
+		srv.request.value = true;
+		if (!srv_arming.call(srv)) {
+			throw std::runtime_error("Error calling arming service");
+		}
 
-    mavros_msgs::CommandBool arm_cmd;
-    arm_cmd.request.value = true;
+		// wait until armed
+		while (ros::ok()) {
+			ros::spinOnce();
+			if (cur_state.armed) {
+				break;
+			} else if (ros::Time::now() - start > ros::Duration(5)) {
+				throw std::runtime_error("Arming timed out");
+			}
+			ros::spinOnce();
+			r.sleep();
+		}
+	}
+}
+void OffBoard::stream_point()
+{
+    ros::Rate r(40);
+    while (ros::ok())
+    {
+        ros::spinOnce();
 
-    ros::Time last_request = ros::Time::now();
-
-    while(ros::ok()){
-        if( cur_state.mode != "OFFBOARD" &&
-            (ros::Time::now() - last_request > ros::Duration(5.0))){
-            if( srv_set_mode.call(offb_set_mode) &&
-                offb_set_mode.response.mode_sent){
-                ROS_INFO("Offboard enabled");
-            }
-            last_request = ros::Time::now();
-        } else {
-            if( !cur_state.armed &&
-                (ros::Time::now() - last_request > ros::Duration(5.0))){
-                if( srv_arming.call(arm_cmd) &&
-                    arm_cmd.response.success){
-                    ROS_INFO("Vehicle armed");
-                }
-                last_request = ros::Time::now();
-            }
-        }
-
-        pub_cmd_vel.publish(zero_cmd_vel);
+        pub_setpoint.publish(_setpoint);
 
         ros::spinOnce();
         r.sleep();
     }
 }
 
-void OffBoard::holdPositon()
+bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::Response &res)
 {
-    // Todo: writing hold mode
-    // Get local position and publish is a one of most solution
+    if(req.auto_arm){
+        offboardAndArm();
+    }
+    _setpoint.pose.position.x = req.x;
+    _setpoint.pose.position.y = req.y;
+    _setpoint.pose.position.z = req.z;
+
+    res.success = true;
+    res.message = "oke";
+    return true;
 }
 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "offb_node");
-
+    ROS_INFO("OFFBOARD NODE INITIAL!");
+    
     OffBoard ob;
 
     ros::spin();

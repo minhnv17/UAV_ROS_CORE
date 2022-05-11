@@ -1,10 +1,14 @@
 #include <ros/ros.h>
-#include <mavros_msgs/State.h>
-#include <mavros_msgs/SetMode.h>
-#include <mavros_msgs/CommandBool.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/PoseStamped.h>
 
+#include <mavros_msgs/State.h>
+#include <mavros_msgs/SetMode.h>
+#include <mavros_msgs/CommandBool.h>
+#include <mavros_msgs/State.h>
+#include <mavros_msgs/SetMode.h>
+
+#include <uavlab411/Navigate.h>
 
 #define TIMEOUT(msg, timeout) (msg.header.stamp.isZero() || (ros::Time::now() - msg.header.stamp > timeout) )
 
@@ -16,14 +20,14 @@ class OffBoard
     private:
         ros::NodeHandle nh;
         // Publisher
-        ros::Publisher pub_cmd_vel;
+        ros::Publisher pub_setpoint;
 
         // Subscriber
         ros::Subscriber sub_state;
-        ros::Subscriber sub_cmd_vel;
 
-        // Service client
-        ros::ServiceClient srv_arming, srv_set_mode, srv_takeoff;
+        // Service
+        ros::ServiceClient srv_arming, srv_set_mode;
+        ros::ServiceServer navigate_srv;
 
         // Function handle
         void handleState(const mavros_msgs::State::ConstPtr& msg);
@@ -31,10 +35,11 @@ class OffBoard
 
         // Main function
         void offboardAndArm();
-        void holdPositon();
-        void servive();
+        void stream_point();
 
+        // Service func
+        bool Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::Response &res);
         // Variable
         mavros_msgs::State cur_state;
-        geometry_msgs::Twist new_cmd_vel;
+        geometry_msgs::PoseStamped _setpoint;
 };
