@@ -10,10 +10,11 @@
 #include "mavros_msgs/CommandBool.h"
 #include "mavros_msgs/SetMode.h"
 #include "nav_msgs/Odometry.h"
-#include "uavlab411/UdpServer.h"
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/BatteryState.h"
 #include "uavlab411/control_robot_msg.h"
+#include "uavlab411/UdpServer.h"
+
 
 /* ---- Global variable ---- */
 // Socket server
@@ -33,6 +34,7 @@ mavros_msgs::ManualControl manual_control_msg; // Manual control msg
 // mavros_msgs::ManualControl control_robot_msg;
 sensor_msgs::NavSatFix global_msg; // message from topic "/mavros/global_position/global"
 sensor_msgs::BatteryState battery_msg; // message from /mavros/battery
+
 //param
 int port;
 
@@ -126,10 +128,7 @@ void handleState(const mavros_msgs::State& s)
 	send_state.armed = s.armed;
 	send_state.connected = s.connected;
 	send_state.mode = mode_to_int(s.mode);
-	//ROS_INFO("mode : %d",send_state.mode);
-	//ROS_INFO("vol : %f", battery_msg.voltage);
 	send_state.battery_remaining = battery_remaining_calculate(battery_msg.voltage);
-	//ROS_INFO("%d", send_state.battery_remaining);
 
 	uavlink_message_t msg;
 	uavlink_state_encode(&msg, &send_state);
@@ -167,20 +166,6 @@ void handleLocalPosition(const nav_msgs::Odometry& o)
 	uavlink_global_position_encode(&msg,&global_pos);
 	char buf[300];
 	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
-	printf("\n");
-	for (int i =0 ;i<25;i++)
-	{
-	   printf("%d, ",buf[i]);
-	}
- 	uavlink_global_position_int_t test;
- 	uavlink_global_position_decode((uint8_t*)buf, &test);
-	// ROS_INFO("\n\n\nlat: %d", test.lat);
-	// ROS_INFO("lon: %d", test.lon);
-	// ROS_INFO("alt: %f", test.alt);
-	// ROS_INFO("vx: %f", test.vx);
-	// ROS_INFO("vy: %f", test.vy);
-	// ROS_INFO("vz: %f", test.vz);
-	// ROS_INFO("LEN: %d", len);
 	writeSocketMessage(buf, len);
 	r.sleep();
 }
@@ -233,16 +218,15 @@ void readingSocketThread()
 	// handle_msg_set_mode();
 	while (true) {
 		// read next UDP packet
-		int bsize = recvfrom(sockfd, &buff[0], sizeof(buff) - 1, 0, (sockaddr *) &android_addr, &android_addr_size);
-		
+		int bsize = recvfrom(sockfd, &buff[0], sizeof(buff) - 1, 0, (sockaddr *) &android_addr, &android_addr_size);	
 		check_receiver = true;
 		if (bsize < 0) {
 			ROS_ERROR("recvfrom() error: %s", strerror(errno));
 		}
 		else {
-			uint16_t number = ReadINT16(buff, 0);
-			ROS_INFO("%d",number);
-			switch (number)
+			if(!check_receiver) check_receiver = true;
+			uint16_t msgid = ReadINT16(buff, 0);
+			switch (msgid)
 			{
 				case MAVLINK_MSG_ID_SET_MODE:
 					handle_msg_set_mode(buff);
@@ -259,7 +243,6 @@ void readingSocketThread()
 					handle_msg_control_robot(buff);
 					break;
 				default:
-					// test();
 					break;
 			}
 		}
@@ -268,11 +251,6 @@ void readingSocketThread()
 
 void writeSocketMessage(char buff[], int length)
 {
-	// sockaddr_in client;
-	// client.sin_family = AF_INET;
-	// client.sin_port = htons(35602);
-	// client.sin_addr.s_addr = inet_addr("192.168.0.132");
-	// socklen_t client_size = sizeof(client);
 	if (check_receiver) // Need received first
 	{
 		int len = sendto(sockfd, (const char *)buff, length + 1, 0, (const struct sockaddr *) &android_addr, android_addr_size);
@@ -293,9 +271,10 @@ int main(int argc, char **argv)
 	control_robot_pub = nh.advertise<uavlab411::control_robot_msg>("control_robot",1);
 	// Initial subscribe
 	auto state_sub = nh.subscribe("mavros/state", 1, &handleState);
-	auto global_position_sub = nh.subscribe("/mavros/global_position/global",1,&handleGlobalPosition);
-	auto local_position_sub = nh.subscribe("/mavros/global_position/local",1,&handleLocalPosition);
-	auto battery_sub = nh.subscribe("/mavros/battery",1,&handle_Battery_State);
+	auto global_position_sub = nh.subscribe("/mavros/global_position/global", 1, &handleGlobalPosition);
+	auto local_position_sub = nh.subscribe("/mavros/global_position/local", 1, &handleLocalPosition);
+	auto battery_sub = nh.subscribe("/mavros/battery", 1, &handle_Battery_State);
+
 	// Service client
 	set_mode = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
 	arming = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");

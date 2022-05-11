@@ -137,16 +137,18 @@ uint8_t _mav_trim_payload(const char *payload, uint8_t length)
 
 int8_t mode_to_int(string mode)
 {
-	for(int i=0; i<sizeof(mode_define)/sizeof(mode_define[0]);i++)
+	for(int8_t i = 0; i < sizeof(mode_define); i++)
 	{
 		if (mode == mode_define[i]) return i;
 	}
-	return 100;
+	return -1;
 }
+
 int8_t battery_remaining_calculate(float voltage)
 {
 	return (int8_t)((voltage - MIN_VOLTAGE) / (MAX_VOLTAGE - MIN_VOLTAGE)*100);
 }
+
 uint16_t uavlink_msg_to_send_buffer(uint8_t *buf, const uavlink_message_t *msg)
 {
 	uint8_t length = msg->len;
