@@ -7,9 +7,14 @@
 #include <geometry_msgs/Pose2D.h>
 #include <math.h>
 #include <tf/transform_broadcaster.h>
+
 //define global variable
 double z_barometer;
+geometry_msgs::PoseStamped uav_pose;
+int pose_seq = 0;
 // define subscriber and publisher
+ros::Publisher uavpose_pub;
+
 ros::Subscriber main_optical_flow_pose_sub;
 ros::Subscriber local_position_sub;
 
@@ -53,6 +58,15 @@ void handle_main_optical_flow_pose(const geometry_msgs::PoseWithCovarianceStampe
     transform.setRotation(orientation_map);
     br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "uav_frame", "aruco_frame"));
     ROS_INFO("x: %f y:%f z:%f",x_map,y_map,z_map);
+
+    uav_pose.header.frame_id = "aruco_frame";
+    uav_pose.header.seq = pose_seq;
+    uav_pose.header.stamp = ros::Time::now();
+    uav_pose.pose.position.x = x_map;
+    uav_pose.pose.position.y = y_map;
+    uav_pose.pose.position.z = z_barometer;
+    uavpose_pub.publish(uav_pose);
+    pose_seq++;
 }
 
 void handle_local_position(const geometry_msgs::PoseStamped& msg)
@@ -67,6 +81,10 @@ int main(int argc, char **argv)
 
     main_optical_flow_pose_sub = nh.subscribe("/aruco_map/pose",1,&handle_main_optical_flow_pose);
     local_position_sub = nh.subscribe("mavros/local_position/pose",1,&handle_local_position);
+
+    // Publish
+    uavpose_pub = nh.advertise<geometry_msgs::PoseStamped>("uavlab411/uavpose", 1);
+
     ros::spin();
     return 0;
 }

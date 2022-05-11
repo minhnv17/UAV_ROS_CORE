@@ -101,8 +101,8 @@ add_message_files(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
- INCLUDE_DIRS include
- LIBRARIES uavlab411
+  INCLUDE_DIRS include
+  LIBRARIES uavlab411
 #  CATKIN_DEPENDS roscpp
 #  DEPENDS system_lib
 )
@@ -134,7 +134,7 @@ include_directories(
 # add_executable(${PROJECT_NAME}_node src/uavlab411_node.cpp)
 add_executable(UdpServer src/UdpServer.cpp)
 add_executable(Localization src/Localization.cpp)
-add_executable(off_board src/off_board.cpp)
+add_executable(Off_board src/Off_board.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -152,7 +152,7 @@ target_link_libraries(Localization
 target_link_libraries(UdpServer
   ${catkin_LIBRARIES}
 )
-target_link_libraries(off_board
+target_link_libraries(Off_board
   ${catkin_LIBRARIES}
 )
 
