@@ -10,6 +10,7 @@ project(uavlab411)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   message_generation
+  tf
 )
 
 ## System dependencies are found with CMake's conventions
@@ -133,6 +134,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/uavlab411_node.cpp)
 add_executable(UdpServer src/UdpServer.cpp)
+add_executable(Navigate_aruco src/Navigate_aruco.cpp)
 add_executable(UdpClient src/UdpClient.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -146,6 +148,9 @@ add_executable(UdpClient src/UdpClient.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(UdpClient
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(Navigate_aruco
   ${catkin_LIBRARIES}
 )
 target_link_libraries(UdpServer
