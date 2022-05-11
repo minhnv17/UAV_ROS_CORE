@@ -9,7 +9,6 @@ project(uavlab411)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
-  message_generation
   tf
   geometry_msgs
 )
@@ -50,7 +49,6 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
-  control_robot_msg.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -68,11 +66,11 @@ add_message_files(
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs  # Or other packages containing msgs
-)
-catkin_package(CATKIN_DEPENDS message_runtime)
+# generate_messages(
+#   DEPENDENCIES
+#   std_msgs  # Or other packages containing msgs
+# )
+# catkin_package(CATKIN_DEPENDS message_runtime)
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
 ################################################

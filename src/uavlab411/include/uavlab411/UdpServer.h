@@ -30,7 +30,6 @@ void 			handle_Battery_State(const sensor_msgs::BatteryState&);
 void 			handle_msg_set_mode(char buff[]);
 void 			handle_msg_manual_control(int bsize, char buff[]);
 void 			handle_arm_disarm(char buff[]);
-void 			handle_msg_control_robot(char buff[]);
 // Function handle send msg
 void handle_Write_State(char buff[]);
 
