@@ -1,0 +1,8 @@
+<launch>
+    <include file="$(find px4)/launch/mavros_posix_sitl.launch">
+        <arg name="vehicle" value="iris_rplidar"/>
+    </include>
+
+    <include file="$(find hector_slam_launch)/launch/tutorial.launch">
+    </include>
+</launch>

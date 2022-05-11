@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   message_generation
   tf
+  geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -136,6 +137,7 @@ include_directories(
 add_executable(UdpServer src/UdpServer.cpp)
 add_executable(Localization src/Localization.cpp)
 add_executable(UdpClient src/UdpClient.cpp)
+add_executable(off_board src/off_board.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -154,6 +156,9 @@ target_link_libraries(Localization
   ${catkin_LIBRARIES}
 )
 target_link_libraries(UdpServer
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(off_board
   ${catkin_LIBRARIES}
 )
 
