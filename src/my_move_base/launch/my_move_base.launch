@@ -2,10 +2,10 @@
 
 <launch>
     <!-- Run the map server -->
-    <node name="map_server" pkg="map_server" type="map_server" args="$(find my_move_base)/maps/newmap.yaml">
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find my_move_base)/maps/mymap.yaml">
     </node>
 
-    <!--- Run AMCL --> 
+    <!-- - Run AMCL 
     <include file="$(find amcl)/examples/amcl_omni.launch">
     </include>
 
@@ -16,5 +16,5 @@
         <rosparam file="$(find my_move_base)/config/global_costmap_params.yaml" command="load" /> 
         <rosparam file="$(find my_move_base)/config/base_local_planner_params.yaml" command="load" />
         <rosparam file="$(find my_move_base)/config/global_planner_params.yaml" command="load" />
-    </node>
+    </node> -->
 </launch> 
