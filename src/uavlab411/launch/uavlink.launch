@@ -1,6 +1,6 @@
 <launch>
     <node name="UdpSocket" pkg="uavlab411" type="UdpServer" output="screen">
     </node>
-    <node name="aruco_position" pkg="uavlab411" type="Navigate_aruco" output = "screen">
+    <node name="aruco_position" pkg="uavlab411" type="Localization" output = "screen">
     </node>
 </launch>
