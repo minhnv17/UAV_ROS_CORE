@@ -13,7 +13,7 @@
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/BatteryState.h"
 #include "uavlab411/UdpServer.h"
-
+#include "uavlab411/control_robot_msg.h"
 
 /* ---- Global variable ---- */
 // Socket server
@@ -27,6 +27,7 @@ ros::Duration arming_timeout;
 ros::Duration state_timeout;
 
 // ROS Message
+uavlab411::control_robot_msg msg_robot;
 mavros_msgs::State state; // State robot
 mavros_msgs::ManualControl manual_control_msg; // Manual control msg
 sensor_msgs::NavSatFix global_msg; // message from topic "/mavros/global_position/global"
@@ -61,6 +62,14 @@ void handle_msg_set_mode(char buff[])
 	else{
 		ROS_INFO("Robot already in this mode");
 	}
+}
+
+void handle_msg_control_robot(char buff[])
+{
+	msg_robot.step1 = ReadINT16(buff,2);
+	msg_robot.step2 = ReadINT16(buff,4);
+	msg_robot.tongs = ReadINT16(buff,6);
+	control_robot_pub.publish(msg_robot);
 }
 
 void handle_arm_disarm(char buff[]) 
@@ -137,21 +146,11 @@ void handleLocalPosition(const nav_msgs::Odometry& o)
 	global_pos.vy = (float)o.twist.twist.linear.y;
 	global_pos.vz = (float)o.twist.twist.linear.z;
 	
-	// global_pos.vx = 1.2;
-	// global_pos.vy = 2.6;
-	// global_pos.vz = 0.5;
 	//get data from global_position
 	global_pos.alt = (float)o.pose.pose.position.z;
 	// global_pos.alt = 1;
 	global_pos.lat = (int32_t)(global_msg.latitude*10000000);
 	global_pos.lon = (int32_t)(global_msg.longitude*10000000);
-	// global_pos.vx = 17;
-	// global_pos.vy = 17;
-	// global_pos.vz = 17;
-	// //get data from global_position
-	// global_pos.alt = 17;
-	// global_pos.lat = 17;
-	// global_pos.lon = 17;
 	uavlink_message_t msg;
 	uavlink_global_position_encode(&msg,&global_pos);
 	char buf[300];
@@ -229,6 +228,9 @@ void readingSocketThread()
 				case MAV_CMD_COMPONENT_ARM_DISARM:
 					handle_arm_disarm(buff);
 					break;
+				case CONTROL_ROBOT_MSG_ID:
+					handle_msg_control_robot(buff);
+					break;
 				default:
 					break;
 			}
@@ -255,7 +257,8 @@ int main(int argc, char **argv)
 
 	// Initial publisher
 	manual_control_pub = nh.advertise<mavros_msgs::ManualControl>("mavros/manual_control/send", 1);
-
+	control_robot_pub = nh.advertise<uavlab411::control_robot_msg>("control_robot",1);
+	
 	// Initial subscribe
 	auto state_sub = nh.subscribe("mavros/state", 1, &handleState);
 	auto global_position_sub = nh.subscribe("/mavros/global_position/global", 1, &handleGlobalPosition);

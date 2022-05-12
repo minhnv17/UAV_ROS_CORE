@@ -95,7 +95,7 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
     _setpoint.pose.position.z = req.z;
 
     res.success = true;
-    res.message = "oke";
+    res.message = "navigate with frame id to waypoint";
     return true;
 }
 
