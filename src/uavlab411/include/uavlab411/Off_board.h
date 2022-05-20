@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <math.h>
 
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/SetMode.h>
@@ -24,6 +25,7 @@ class OffBoard
 
         // Subscriber
         ros::Subscriber sub_state;
+        ros::Subscriber sub_uavpose;
 
         // Service
         ros::ServiceClient srv_arming, srv_set_mode;
@@ -32,6 +34,7 @@ class OffBoard
         // Function handle
         void handleState(const mavros_msgs::State::ConstPtr& msg);
         void handleCmdVel(const geometry_msgs::Twist::ConstPtr& msg);
+        void handlePoses(const geometry_msgs::PoseStamped::ConstPtr& msg);
 
         // Main function
         void offboardAndArm();
@@ -42,4 +45,15 @@ class OffBoard
         // Variable
         mavros_msgs::State cur_state;
         geometry_msgs::PoseStamped _setpoint;
+        geometry_msgs::PoseStamped _uavpose;
+
+        // PID Controller parameter
+        float Kp = 0;
+        float Kd = 0;
+        float Ki = 0;
+
+        float E_i = 0;
+        float E_d = 0;
+
+        int PidControl(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt);
 };
