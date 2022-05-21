@@ -3,7 +3,7 @@
 //define global variable
 double z_barometer;
 geometry_msgs::PoseStamped uav_pose;
-int pose_seq = 0;
+uint64_t pose_seq = 0;
 // define subscriber and publisher
 ros::Publisher uavpose_pub;
 
@@ -56,6 +56,8 @@ void handle_main_optical_flow_pose(const geometry_msgs::PoseWithCovarianceStampe
     uav_pose.pose.position.x = x_map;
     uav_pose.pose.position.y = y_map;
     uav_pose.pose.position.z = z_map;
+
+    uav_pose.pose.orientation.z = yaw_map;
     uavpose_pub.publish(uav_pose);
     pose_seq++;
 }

@@ -17,7 +17,7 @@ class OffBoard
 {
     public:
         OffBoard();
-
+        void tunning_pid(float Kp, float Ki, float Kd);
     private:
         ros::NodeHandle nh;
         // Publisher
@@ -55,5 +55,5 @@ class OffBoard
         float E_i = 0;
         float E_d = 0;
 
-        int PidControl(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt);
+        float PidControl(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt);
 };
