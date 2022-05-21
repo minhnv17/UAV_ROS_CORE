@@ -4,6 +4,7 @@ OffBoard::OffBoard()
 {
     sub_state = nh.subscribe<mavros_msgs::State>("mavros/state", 1, &OffBoard::handleState, this);
     pub_setpoint = nh.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 20);
+    pub_yawrate = nh.advertise<mavros_msgs::PositionTarget>("mavros/setpoint_raw/local",20);
     sub_uavpose = nh.subscribe<geometry_msgs::PoseStamped>("uavlab411/uavpose", 1, &OffBoard::handlePoses, this);
 
     srv_arming = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
@@ -12,7 +13,15 @@ OffBoard::OffBoard()
     navigate_srv = nh.advertiseService("uavnavigate", &OffBoard::Navigate, this);
 
     Kp = 2;
-
+    _yawrate.type_mask = mavros_msgs::PositionTarget::IGNORE_VX +
+                        mavros_msgs::PositionTarget::IGNORE_VY +
+                        mavros_msgs::PositionTarget::IGNORE_VZ +
+                        mavros_msgs::PositionTarget::IGNORE_AFX +
+                        mavros_msgs::PositionTarget::IGNORE_AFY +
+                        mavros_msgs::PositionTarget::IGNORE_AFZ +
+                        mavros_msgs::PositionTarget::IGNORE_YAW 
+                        ;
+    _yawrate.header.seq = 1;
     stream_point();
 }
 
@@ -88,18 +97,23 @@ void OffBoard::offboardAndArm()
 
 void OffBoard::stream_point()
 {   
-    int hz = 5;
-    float yaw_rate;
+    int hz = 20;
+    float _yaw_rate;
     ros::Rate r(hz);
     while (ros::ok())
     {
         ros::spinOnce();
-        yaw_rate = PidControl(_uavpose.pose.position.x, _uavpose.pose.position.y,
+        _yaw_rate = PidControl(_uavpose.pose.position.x, _uavpose.pose.position.y,
                    3, 3, _uavpose.pose.orientation.z, 1.0/hz);
         
         // _setpoint.pose.orientation.z
-        pub_setpoint.publish(_setpoint);
-
+        // pub_setpoint.publish(_setpoint);
+        _yawrate.yaw_rate = _yaw_rate;
+        _yawrate.header.frame_id = "map";
+        _yawrate.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
+        _yawrate.header.stamp = ros::Time::now();
+        _yawrate.header.seq++;
+        pub_yawrate.publish(_yawrate);
         ros::spinOnce();
         r.sleep();
     }
@@ -161,8 +175,8 @@ float OffBoard::PidControl(float x_cur, float y_cur, float x_goal, float y_goal,
     e_I = E_i + E_k * dt;
     e_D = (E_k - E_d) / dt;
 
-    ROS_INFO("e_I: %f", e_I);
-    ROS_INFO("e_D: %f", e_D);
+    // ROS_INFO("e_I: %f", e_I);
+    // ROS_INFO("e_D: %f", e_D);
     // PID Function
     w = Kp * E_k + Ki * e_I + Kd * e_D;
     // w = Kp * E_k;

@@ -8,7 +8,7 @@
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/SetMode.h>
-
+#include <mavros_msgs/PositionTarget.h>
 #include <uavlab411/Navigate.h>
 
 #define TIMEOUT(msg, timeout) (msg.header.stamp.isZero() || (ros::Time::now() - msg.header.stamp > timeout) )
@@ -22,7 +22,7 @@ class OffBoard
         ros::NodeHandle nh;
         // Publisher
         ros::Publisher pub_setpoint;
-
+        ros::Publisher pub_yawrate;
         // Subscriber
         ros::Subscriber sub_state;
         ros::Subscriber sub_uavpose;
@@ -44,6 +44,7 @@ class OffBoard
         bool Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::Response &res);
         // Variable
         mavros_msgs::State cur_state;
+        mavros_msgs::PositionTarget _yawrate;
         geometry_msgs::PoseStamped _setpoint;
         geometry_msgs::PoseStamped _uavpose;
 
