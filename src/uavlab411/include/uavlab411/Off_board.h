@@ -41,6 +41,7 @@ class OffBoard
         void stream_point();
         void navToWaypoint(float x, float y, int rate);
         void holdMode();
+        void takeOffMode(float z);
 
         // Service func
         bool Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::Response &res);

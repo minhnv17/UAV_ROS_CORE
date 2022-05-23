@@ -13,8 +13,8 @@ OffBoard::OffBoard()
 
     navigate_srv = nh.advertiseService("uavnavigate", &OffBoard::Navigate, this);
 
-    Kp = 1;
-    Ki = 0.1;
+    Kp = 0.8;
+    Ki = 0.2;
     stateUav = 2;
     stream_point();
 }
@@ -109,10 +109,10 @@ void OffBoard::stream_point()
             holdMode();
             break;
         case 0: // Takeoff mode
-            if (currentZ == 0)
-                currentZ = 1;
-
-            _setpoint.pose.position.z = currentZ;
+            if (_uavpose.pose.position.z > _setpoint.pose.position.z - 0.1)
+            {
+                stateUav = 2; // switch to hold mode
+            }
             pub_setpoint.publish(_setpoint);
             break;
         default:
@@ -126,8 +126,17 @@ void OffBoard::stream_point()
 void OffBoard::holdMode()
 {
     ROS_INFO("HOLD MODE!");
+    _navMessage.type_mask = PositionTarget::IGNORE_YAW +
+                            PositionTarget::IGNORE_YAW_RATE;
     _holdMessage.coordinate_frame = PositionTarget::FRAME_BODY_NED;
     pub_navMessage.publish(_holdMessage);
+}
+
+void OffBoard::takeOffMode(float z)
+{
+    ROS_INFO("TAKE OFF MODE!");
+    stateUav = 0;
+    _setpoint.pose.position.z = z;
 }
 
 void OffBoard::navToWaypoint(float x, float y, int rate)
@@ -150,25 +159,33 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
 {
     if (req.auto_arm)
     {
+        stateUav = 0;
+        _setpoint.pose.position.z = req.z;
         offboardAndArm();
+        res.message = "TAKE OFF MODE!";
     }
-    stateUav = 1;
+    else
+    {
+        E_i = 0;
+        E_d = 0;
+        stateUav = 1;
+        _navMessage.type_mask = PositionTarget::IGNORE_PX +
+                                PositionTarget::IGNORE_PY +
+                                PositionTarget::IGNORE_PZ +
+                                PositionTarget::IGNORE_AFX +
+                                PositionTarget::IGNORE_AFY +
+                                PositionTarget::IGNORE_AFZ +
+                                PositionTarget::IGNORE_YAW;
 
-    _navMessage.type_mask = PositionTarget::IGNORE_PX +
-                            PositionTarget::IGNORE_PY +
-                            PositionTarget::IGNORE_PZ +
-                            PositionTarget::IGNORE_AFX +
-                            PositionTarget::IGNORE_AFY +
-                            PositionTarget::IGNORE_AFZ +
-                            PositionTarget::IGNORE_YAW;
+        _navMessage.position.z = req.z;
+        _navMessage.velocity.x = 0.2;
+        targetX = req.x;
+        targetY = req.y;
+        currentZ = req.z;
+        res.success = true;
+        res.message = "NAVIGATE TO WAYPOINT!";
+    }
 
-    _navMessage.position.z = req.z;
-    _navMessage.velocity.x = 0.2;
-    targetX = req.x;
-    targetY = req.y;
-    currentZ = req.z;
-    res.success = true;
-    res.message = "navigate with frame id to waypoint";
     return true;
 }
 
@@ -186,8 +203,6 @@ float OffBoard::PidControl(float x_cur, float y_cur, float x_goal, float y_goal,
     float e_y;
     float E_k = 0;
     float alpha_g;
-    float E_i = 0;
-    float E_d = 0;
     float e_I;
     float e_D;
     float w;
@@ -213,11 +228,12 @@ float OffBoard::PidControl(float x_cur, float y_cur, float x_goal, float y_goal,
     e_I = E_i + E_k * dt;
     e_D = (E_k - E_d) / dt;
 
-    // ROS_INFO("e_I: %f", e_I);
-    // ROS_INFO("e_D: %f", e_D);
     // PID Function
     w = Kp * E_k + Ki * e_I + Kd * e_D;
-    // w = Kp * E_k;
+
+    E_i = e_I;
+    E_d = E_k;
+
     ROS_INFO("W: %f", w);
     return w;
 }
