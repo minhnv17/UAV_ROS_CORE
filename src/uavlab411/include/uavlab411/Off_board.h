@@ -40,13 +40,13 @@ class OffBoard
         void offboardAndArm();
         void stream_point();
         void navToWaypoint(float x, float y, int rate);
-        void takeOff(float z);
+        void holdMode();
 
         // Service func
         bool Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::Response &res);
         // Variable
         mavros_msgs::State cur_state;
-        mavros_msgs::PositionTarget _navMessage;
+        mavros_msgs::PositionTarget _navMessage, _holdMessage;
         geometry_msgs::PoseStamped _setpoint;
         geometry_msgs::PoseStamped _uavpose;
         geometry_msgs::Twist _cmdvel_msg;

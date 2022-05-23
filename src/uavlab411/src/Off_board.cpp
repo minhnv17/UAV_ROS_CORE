@@ -15,7 +15,7 @@ OffBoard::OffBoard()
 
     Kp = 1;
     Ki = 0.1;
-    stateUav = 0;
+    stateUav = 2;
     stream_point();
 }
 
@@ -105,10 +105,10 @@ void OffBoard::stream_point()
             navToWaypoint(targetX, targetY, hz);
             pub_navMessage.publish(_navMessage);
             break;
-        case 2: // Takeoff mode
-
+        case 2: // Hold mode
+            holdMode();
             break;
-        case 0: // hold mode
+        case 0: // Takeoff mode
             if (currentZ == 0)
                 currentZ = 1;
 
@@ -123,13 +123,11 @@ void OffBoard::stream_point()
         r.sleep();
     }
 }
-
-void OffBoard::takeOff(float z)
+void OffBoard::holdMode()
 {
-    if (z - 0.05 < _uavpose.pose.position.z < z + 0.05)
-    {
-        ROS_INFO("TAKEOFF COMPLETE!!");
-    }
+    ROS_INFO("HOLD MODE!");
+    _holdMessage.coordinate_frame = PositionTarget::FRAME_BODY_NED;
+    pub_navMessage.publish(_holdMessage);
 }
 
 void OffBoard::navToWaypoint(float x, float y, int rate)
@@ -143,8 +141,8 @@ void OffBoard::navToWaypoint(float x, float y, int rate)
     _navMessage.header.stamp = ros::Time::now();
     if (_targetYaw == 0)
     {
-        // stateUav = 0;
-        ROS_INFO("Switch to hold mode!");
+        stateUav = 2;
+        ROS_INFO("Switch to HOLD MODE!");
     }
 }
 
@@ -165,7 +163,7 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
                             PositionTarget::IGNORE_YAW;
 
     _navMessage.position.z = req.z;
-    _navMessage.velocity.x = 0.5;
+    _navMessage.velocity.x = 0.2;
     targetX = req.x;
     targetY = req.y;
     currentZ = req.z;
@@ -198,7 +196,7 @@ float OffBoard::PidControl(float x_cur, float y_cur, float x_goal, float y_goal,
     e_y = y_goal - y_cur;
 
     // If distance tolen < 0.05m -> return
-    if (abs(e_x) < 0.05 && abs(e_y) < 0.05)
+    if (abs(e_x) < 0.1 && abs(e_y) < 0.1)
     {
         ROS_INFO("Navigate to waypoint success!");
         return 0;
