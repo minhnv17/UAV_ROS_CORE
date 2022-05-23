@@ -3,25 +3,19 @@
 OffBoard::OffBoard()
 {
     sub_state = nh.subscribe<mavros_msgs::State>("mavros/state", 1, &OffBoard::handleState, this);
-    pub_setpoint = nh.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 20);
-    pub_yawrate = nh.advertise<mavros_msgs::PositionTarget>("mavros/setpoint_raw/local",20);
     sub_uavpose = nh.subscribe<geometry_msgs::PoseStamped>("uavlab411/uavpose", 1, &OffBoard::handlePoses, this);
+
+    pub_setpoint = nh.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 20);
+    pub_navMessage = nh.advertise<mavros_msgs::PositionTarget>("mavros/setpoint_raw/local", 20);
 
     srv_arming = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
     srv_set_mode = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
 
     navigate_srv = nh.advertiseService("uavnavigate", &OffBoard::Navigate, this);
 
-    Kp = 2;
-    _yawrate.type_mask = mavros_msgs::PositionTarget::IGNORE_VX +
-                        mavros_msgs::PositionTarget::IGNORE_VY +
-                        mavros_msgs::PositionTarget::IGNORE_VZ +
-                        mavros_msgs::PositionTarget::IGNORE_AFX +
-                        mavros_msgs::PositionTarget::IGNORE_AFY +
-                        mavros_msgs::PositionTarget::IGNORE_AFZ +
-                        mavros_msgs::PositionTarget::IGNORE_YAW 
-                        ;
-    _yawrate.header.seq = 1;
+    Kp = 1;
+    Ki = 0.1;
+    stateUav = 0;
     stream_point();
 }
 
@@ -96,26 +90,61 @@ void OffBoard::offboardAndArm()
 }
 
 void OffBoard::stream_point()
-{   
-    int hz = 20;
-    float _yaw_rate;
+{
+    int hz = 40;
     ros::Rate r(hz);
+    _navMessage.coordinate_frame = PositionTarget::FRAME_BODY_NED;
+    _navMessage.header.seq = 0;
     while (ros::ok())
     {
         ros::spinOnce();
-        _yaw_rate = PidControl(_uavpose.pose.position.x, _uavpose.pose.position.y,
-                   3, 3, _uavpose.pose.orientation.z, 1.0/hz);
-        
-        // _setpoint.pose.orientation.z
-        // pub_setpoint.publish(_setpoint);
-        _yawrate.yaw_rate = _yaw_rate;
-        _yawrate.header.frame_id = "map";
-        _yawrate.coordinate_frame = mavros_msgs::PositionTarget::FRAME_LOCAL_NED;
-        _yawrate.header.stamp = ros::Time::now();
-        _yawrate.header.seq++;
-        pub_yawrate.publish(_yawrate);
+        _navMessage.header.seq++;
+        switch (stateUav)
+        {
+        case 1: // navigate to waypoint mode
+            navToWaypoint(targetX, targetY, hz);
+            pub_navMessage.publish(_navMessage);
+            break;
+        case 2: // Takeoff mode
+
+            break;
+        case 0: // hold mode
+            if (currentZ == 0)
+                currentZ = 1;
+
+            _setpoint.pose.position.z = currentZ;
+            pub_setpoint.publish(_setpoint);
+            break;
+        default:
+            break;
+        }
+
         ros::spinOnce();
         r.sleep();
+    }
+}
+
+void OffBoard::takeOff(float z)
+{
+    if (z - 0.05 < _uavpose.pose.position.z < z + 0.05)
+    {
+        ROS_INFO("TAKEOFF COMPLETE!!");
+    }
+}
+
+void OffBoard::navToWaypoint(float x, float y, int rate)
+{
+    float _targetYaw;
+
+    _targetYaw = PidControl(_uavpose.pose.position.x, _uavpose.pose.position.y,
+                            x, y, _uavpose.pose.orientation.z, 1.0 / rate);
+
+    _navMessage.yaw_rate = _targetYaw;
+    _navMessage.header.stamp = ros::Time::now();
+    if (_targetYaw == 0)
+    {
+        // stateUav = 0;
+        ROS_INFO("Switch to hold mode!");
     }
 }
 
@@ -125,10 +154,21 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
     {
         offboardAndArm();
     }
-    _setpoint.pose.position.x = req.x;
-    _setpoint.pose.position.y = req.y;
-    _setpoint.pose.position.z = req.z;
+    stateUav = 1;
 
+    _navMessage.type_mask = PositionTarget::IGNORE_PX +
+                            PositionTarget::IGNORE_PY +
+                            PositionTarget::IGNORE_PZ +
+                            PositionTarget::IGNORE_AFX +
+                            PositionTarget::IGNORE_AFY +
+                            PositionTarget::IGNORE_AFZ +
+                            PositionTarget::IGNORE_YAW;
+
+    _navMessage.position.z = req.z;
+    _navMessage.velocity.x = 0.5;
+    targetX = req.x;
+    targetY = req.y;
+    currentZ = req.z;
     res.success = true;
     res.message = "navigate with frame id to waypoint";
     return true;
@@ -143,7 +183,7 @@ void OffBoard::tunning_pid(float _Kp, float _Ki, float _Kd)
 
 float OffBoard::PidControl(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt)
 {
-    
+
     float e_x;
     float e_y;
     float E_k = 0;
