@@ -13,8 +13,9 @@ OffBoard::OffBoard()
 
     navigate_srv = nh.advertiseService("uavnavigate", &OffBoard::Navigate, this);
 
-    Kp = 0.8;
-    Ki = 0.2;
+    Kp_yaw = 1.2;
+    Ki_yaw = 0.2;
+    Kp_vx = 0.2;
     stateUav = 2;
     stream_point();
 }
@@ -102,7 +103,7 @@ void OffBoard::stream_point()
         switch (stateUav)
         {
         case 1: // navigate to waypoint mode
-            navToWaypoint(targetX, targetY, hz);
+            navToWaypoint(targetX, targetY, targetZ, hz);
             pub_navMessage.publish(_navMessage);
             break;
         case 2: // Hold mode
@@ -126,27 +127,28 @@ void OffBoard::stream_point()
 void OffBoard::holdMode()
 {
     ROS_INFO("HOLD MODE!");
-    _navMessage.type_mask = PositionTarget::IGNORE_YAW +
-                            PositionTarget::IGNORE_YAW_RATE;
+    _holdMessage.type_mask = PositionTarget::IGNORE_YAW +
+                             PositionTarget::IGNORE_YAW_RATE;
     _holdMessage.coordinate_frame = PositionTarget::FRAME_BODY_NED;
+    _holdMessage.position.z = targetZ;
     pub_navMessage.publish(_holdMessage);
 }
 
-void OffBoard::takeOffMode(float z)
-{
-    ROS_INFO("TAKE OFF MODE!");
-    stateUav = 0;
-    _setpoint.pose.position.z = z;
-}
-
-void OffBoard::navToWaypoint(float x, float y, int rate)
+void OffBoard::navToWaypoint(float x, float y, float z, int rate)
 {
     float _targetYaw;
+    float _targetVx;
+    float _targetVz;
 
-    _targetYaw = PidControl(_uavpose.pose.position.x, _uavpose.pose.position.y,
-                            x, y, _uavpose.pose.orientation.z, 1.0 / rate);
-
+    _targetYaw = PidControl_yaw(_uavpose.pose.position.x, _uavpose.pose.position.y,
+                                x, y, _uavpose.pose.orientation.z, 1.0 / rate);
+    _targetVx = PidControl_vx(_uavpose.pose.position.x, _uavpose.pose.position.y,
+                              x, y, _uavpose.pose.orientation.z, 1.0 / rate);
+    _targetVz = Control_vz(_uavpose.pose.position.z, z);
     _navMessage.yaw_rate = _targetYaw;
+    _navMessage.velocity.x = _targetVx;
+    _navMessage.velocity.z = _targetVz;
+    ROS_INFO("Vz= %f", _targetVz);
     _navMessage.header.stamp = ros::Time::now();
     if (_targetYaw == 0)
     {
@@ -166,8 +168,8 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
     }
     else
     {
-        E_i = 0;
-        E_d = 0;
+        Ei_yaw = 0;
+        Ei_vx = 0;
         stateUav = 1;
         _navMessage.type_mask = PositionTarget::IGNORE_PX +
                                 PositionTarget::IGNORE_PY +
@@ -177,11 +179,10 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
                                 PositionTarget::IGNORE_AFZ +
                                 PositionTarget::IGNORE_YAW;
 
-        _navMessage.position.z = req.z;
-        _navMessage.velocity.x = 0.2;
+        // _navMessage.position.z = req.z;
         targetX = req.x;
         targetY = req.y;
-        currentZ = req.z;
+        targetZ = req.z;
         res.success = true;
         res.message = "NAVIGATE TO WAYPOINT!";
     }
@@ -189,22 +190,28 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
     return true;
 }
 
-void OffBoard::tunning_pid(float _Kp, float _Ki, float _Kd)
+void OffBoard::tunning_pid_yaw(float _Kp, float _Ki, float _Kd)
 {
-    Kp = _Kp;
-    Ki = _Ki;
-    Kd = _Kd;
+    Kp_yaw = _Kp;
+    Ki_yaw = _Ki;
+    Kd_yaw = _Kd;
 }
 
-float OffBoard::PidControl(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt)
+void OffBoard::tunning_pid_vx(float _Kp, float _Ki, float _Kd)
+{
+    Kp_vx = _Kp;
+    Ki_vx = _Ki;
+    Kd_vx = _Kd;
+}
+
+float OffBoard::PidControl_yaw(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt)
 {
 
     float e_x;
     float e_y;
-    float E_k = 0;
+    float Error_pre = Error_yaw;
     float alpha_g;
-    float e_I;
-    float e_D;
+    float Ed_yaw;
     float w;
     // Calculate distance from UAV to goal
     e_x = x_goal - x_cur;
@@ -222,20 +229,54 @@ float OffBoard::PidControl(float x_cur, float y_cur, float x_goal, float y_goal,
     // Angle from robot to waypoint
     alpha_g = atan2(e_y, e_x);
 
-    E_k = alpha_g - alpha;
-    E_k = atan2(sin(E_k), cos(E_k));
+    Error_yaw = alpha_g - alpha;
+    Error_yaw = atan2(sin(Error_yaw), cos(Error_yaw));
 
-    e_I = E_i + E_k * dt;
-    e_D = (E_k - E_d) / dt;
+    Ei_yaw += Error_yaw * dt;
+    Ed_yaw = (Error_yaw - Error_pre) / dt;
 
     // PID Function
-    w = Kp * E_k + Ki * e_I + Kd * e_D;
-
-    E_i = e_I;
-    E_d = E_k;
+    w = Kp_yaw * Error_yaw + Ki_yaw * Ei_yaw + Kd_yaw * Ed_yaw;
+    w = w > 2 ? 2 : w < -2 ? -2
+                           : w;
 
     ROS_INFO("W: %f", w);
     return w;
+}
+
+float OffBoard::PidControl_vx(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt)
+{
+
+    float e_x;
+    float e_y;
+    float Error_pre = Error_vx;
+    float alpha_g;
+    float Ed_vx;
+    float w;
+    // Calculate distance from UAV to goal
+    e_x = x_goal - x_cur;
+    e_y = y_goal - y_cur;
+
+    Error_vx = sqrt(e_x * e_x + e_y * e_y);
+
+    Ei_vx += Error_vx * dt;
+    Ed_vx = (Error_vx - Error_pre) / dt;
+
+    // PID Function
+    w = Kp_vx * Error_vx + Ki_vx * Ei_vx + Kd_vx * Ed_vx;
+    w = w > 0.5 ? 0.5 : w < 0.2 ? 0.2
+                                : w;
+    ROS_INFO("Vx: %f", w);
+    return w;
+}
+
+float OffBoard::Control_vz(float z_cur, float z_goal)
+{
+    float error_z = z_goal - z_cur;
+    if (abs(error_z) > 0.2)
+        return error_z / 2;
+    else
+        return 0;
 }
 
 int main(int argc, char **argv)

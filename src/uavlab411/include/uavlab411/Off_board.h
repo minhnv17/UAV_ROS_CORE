@@ -19,7 +19,8 @@ class OffBoard
 {
     public:
         OffBoard();
-        void tunning_pid(float Kp, float Ki, float Kd);
+        void tunning_pid_yaw(float Kp, float Ki, float Kd);
+        void tunning_pid_vx(float Kp, float Ki, float Kd);
     private:
         ros::NodeHandle nh;
         // Publisher
@@ -39,7 +40,7 @@ class OffBoard
         // Main function
         void offboardAndArm();
         void stream_point();
-        void navToWaypoint(float x, float y, int rate);
+        void navToWaypoint(float x, float y,float z, int rate);
         void holdMode();
         void takeOffMode(float z);
 
@@ -53,14 +54,12 @@ class OffBoard
         geometry_msgs::Twist _cmdvel_msg;
 
         // PID Controller parameter
-        float Kp = 0;
-        float Kd = 0;
-        float Ki = 0;
-
-        float E_i = 0;
-        float E_d = 0;
+        float Kp_yaw, Kd_yaw, Ki_yaw, Ei_yaw, Error_yaw;
+        float Kp_vx, Kd_vx, Ki_vx, Ei_vx, Error_vx;
         int stateUav;
 
-        float targetX, targetY, currentZ;
-        float PidControl(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt);
+        float targetX, targetY, targetZ;
+        float PidControl_yaw(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt);
+        float PidControl_vx(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt);
+        float Control_vz(float z_cur, float z_goal);
 };
