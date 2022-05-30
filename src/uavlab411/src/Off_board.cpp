@@ -133,7 +133,6 @@ void OffBoard::stream_point()
 }
 void OffBoard::holdMode()
 {
-    ROS_INFO("HOLD MODE!");
     _holdMessage.type_mask = PositionTarget::IGNORE_YAW +
                              PositionTarget::IGNORE_YAW_RATE;
     _holdMessage.coordinate_frame = PositionTarget::FRAME_BODY_NED;
@@ -155,7 +154,7 @@ void OffBoard::navToWaypoint(float x, float y, float z, int rate)
     _navMessage.yaw_rate = _targetYaw;
     _navMessage.velocity.x = _targetVx;
     _navMessage.velocity.z = _targetVz;
-    ROS_INFO("Vz= %f", _targetVz);
+
     _navMessage.header.stamp = ros::Time::now();
     if (_targetYaw == 0)
     {
@@ -295,7 +294,6 @@ float OffBoard::PidControl_vx(float x_cur, float y_cur, float x_goal, float y_go
     w = Kp_vx * Error_vx + Ki_vx * Ei_vx + Kd_vx * Ed_vx;
     w = w > 0.5 ? 0.5 : w < 0.2 ? 0.2
                                 : w;
-    ROS_INFO("Vx: %f", w);
     return w;
 }
 
