@@ -12,10 +12,17 @@ OffBoard::OffBoard()
     srv_set_mode = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
 
     navigate_srv = nh.advertiseService("uavnavigate", &OffBoard::Navigate, this);
+    pid_tuning_srv = nh.advertiseService("uav_pid_tuning", &OffBoard::TuningPID, this);
 
+    // Default PID
     Kp_yaw = 1.2;
     Ki_yaw = 0.2;
+    Kd_yaw = 0;
+
     Kp_vx = 0.2;
+    Ki_vx = 0;
+    Kd_vx = 0;
+    // Default state hold mode
     stateUav = 2;
     stream_point();
 }
@@ -190,18 +197,40 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
     return true;
 }
 
-void OffBoard::tunning_pid_yaw(float _Kp, float _Ki, float _Kd)
+bool OffBoard::TuningPID(uavlab411::PidTuning::Request &req, uavlab411::PidTuning::Response &res)
 {
-    Kp_yaw = _Kp;
-    Ki_yaw = _Ki;
-    Kd_yaw = _Kd;
-}
+    switch (req.type)
+    {
+    case 0: // Tuning yawrate PID
+        // Response last PID Param
+        res.Kp = Kp_yaw;
+        res.Ki = Ki_yaw;
+        res.Kd = Kd_yaw;
+        // New PID param
+        Kp_yaw = req.Kp;
+        Ki_yaw = req.Ki;
+        Kd_yaw = req.Kd;
 
-void OffBoard::tunning_pid_vx(float _Kp, float _Ki, float _Kd)
-{
-    Kp_vx = _Kp;
-    Ki_vx = _Ki;
-    Kd_vx = _Kd;
+        res.success = true;
+        break;
+    case 1: // Tuning velocity PID
+        // Response last PID Param
+        res.Kp = Kp_vx;
+        res.Ki = Ki_vx;
+        res.Kd = Kd_vx;
+        // New PID param
+        Kp_vx = req.Kp;
+        Ki_vx = req.Ki;
+        Kd_vx = req.Kd;
+
+        res.success = true;
+        break;
+    default:
+        res.success = false;
+        return false;
+        break;
+    }
+    return true;
 }
 
 float OffBoard::PidControl_yaw(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt)

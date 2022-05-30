@@ -57,6 +57,7 @@ add_message_files(
 add_service_files(
   FILES
   Navigate.srv
+  PidTuning.srv
 )
 
 ## Generate actions in the 'action' folder

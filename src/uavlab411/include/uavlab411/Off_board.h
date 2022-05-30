@@ -9,7 +9,9 @@
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/PositionTarget.h>
+
 #include <uavlab411/Navigate.h>
+#include <uavlab411/PidTuning.h>
 
 using namespace mavros_msgs;
 
@@ -19,8 +21,6 @@ class OffBoard
 {
     public:
         OffBoard();
-        void tunning_pid_yaw(float Kp, float Ki, float Kd);
-        void tunning_pid_vx(float Kp, float Ki, float Kd);
     private:
         ros::NodeHandle nh;
         // Publisher
@@ -31,7 +31,7 @@ class OffBoard
 
         // Service
         ros::ServiceClient srv_arming, srv_set_mode;
-        ros::ServiceServer navigate_srv;
+        ros::ServiceServer navigate_srv, pid_tuning_srv;
 
         // Function handle
         void handleState(const mavros_msgs::State::ConstPtr& msg);
@@ -46,6 +46,7 @@ class OffBoard
 
         // Service func
         bool Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::Response &res);
+        bool TuningPID(uavlab411::PidTuning::Request &req, uavlab411::PidTuning::Response &res);
         // Variable
         mavros_msgs::State cur_state;
         mavros_msgs::PositionTarget _navMessage, _holdMessage;
