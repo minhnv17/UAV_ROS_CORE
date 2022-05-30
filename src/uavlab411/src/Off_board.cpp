@@ -106,11 +106,12 @@ void OffBoard::stream_point()
     while (ros::ok())
     {
         ros::spinOnce();
-        _navMessage.header.seq++;
+        
         switch (stateUav)
         {
         case 1: // navigate to waypoint mode
             navToWaypoint(targetX, targetY, targetZ, hz);
+            _navMessage.header.seq++;
             pub_navMessage.publish(_navMessage);
             break;
         case 2: // Hold mode
@@ -136,6 +137,7 @@ void OffBoard::holdMode()
     _holdMessage.type_mask = PositionTarget::IGNORE_YAW +
                              PositionTarget::IGNORE_YAW_RATE;
     _holdMessage.coordinate_frame = PositionTarget::FRAME_BODY_NED;
+    _navMessage.header.seq++;
     _holdMessage.position.z = targetZ;
     pub_navMessage.publish(_holdMessage);
 }
@@ -268,7 +270,6 @@ float OffBoard::PidControl_yaw(float x_cur, float y_cur, float x_goal, float y_g
     w = w > 2 ? 2 : w < -2 ? -2
                            : w;
 
-    ROS_INFO("W: %f", w);
     return w;
 }
 
