@@ -7,7 +7,7 @@ rospy.init_node("navigate_node")
 
 uavpose = 0
 is_pose = False
-wps = [[1, 1], [1, 1.5], [1, 2], [2, 2,3], [3, 4]]
+wps = [[1, 1], [1, 1.5], [1, 2], [2, 2.3], [3, 4]]
 navigate_to = rospy.ServiceProxy('uavnavigate', srv.Navigate)
 
 def navigate_wait(x, y, z, tolerance = 0.2, auto_arm = False):
@@ -21,22 +21,32 @@ def navigate_wait(x, y, z, tolerance = 0.2, auto_arm = False):
             return res
         rospy.sleep(0.2)
 
+def takeoff(z):
+    res = navigate_to(z = 1, auto_arm = True)
+    if not res.success:
+        return res
+    while not rospy.is_shutdown():
+        if abs(uavpose.pose.position.z - z) < 0.05:
+            return res
+        rospy.sleep(0.2)
+
 def uavpose_cb(msg):
     global uavpose, is_pose
     is_pose = True
-    print(uavpose)
     uavpose = msg
 
 rospy.Subscriber('uavlab411/uavpose', PoseStamped, uavpose_cb)
 
 # takeoff
-res = navigate_to(z = 1, auto_arm = True)
-rospy.sleep(5)
+print("Take off now!")
+takeoff(1.5)
+
 # navigate
 for i in wps:
     while not is_pose:
         rospy.sleep(0.5)
         print("no local position!")
-    navigate_wait(x = i[0], y = i[1], z = 1, auto_arm = False)
+    print("navigate to wp " + str(i))
+    navigate_wait(x = i[0], y = i[1], z = 1, tolerance=0.1, auto_arm = False)
 
 rospy.spin()

@@ -15,7 +15,7 @@ OffBoard::OffBoard()
     pid_tuning_srv = nh.advertiseService("uav_pid_tuning", &OffBoard::TuningPID, this);
 
     // Default PID
-    Kp_yaw = 1.2;
+    Kp_yaw = 1;
     Ki_yaw = 0.2;
     Kd_yaw = 0;
 
@@ -153,7 +153,7 @@ void OffBoard::navToWaypoint(float x, float y, float z, int rate)
     _targetVx = PidControl_vx(_uavpose.pose.position.x, _uavpose.pose.position.y,
                               x, y, _uavpose.pose.orientation.z, 1.0 / rate);
     _targetVz = Control_vz(_uavpose.pose.position.z, z);
-    _navMessage.yaw_rate = _targetYaw;
+    _navMessage.yaw_rate = _targetYaw*0.8;
     _navMessage.velocity.x = _targetVx;
     _navMessage.velocity.z = _targetVz;
 
@@ -267,8 +267,7 @@ float OffBoard::PidControl_yaw(float x_cur, float y_cur, float x_goal, float y_g
 
     // PID Function
     w = Kp_yaw * Error_yaw + Ki_yaw * Ei_yaw + Kd_yaw * Ed_yaw;
-    w = w > 2 ? 2 : w < -2 ? -2
-                           : w;
+    w = w > 2 ? 2 : w < -2 ? -2: w;
 
     return w;
 }
