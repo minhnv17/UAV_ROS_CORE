@@ -15,7 +15,7 @@ OffBoard::OffBoard()
     pid_tuning_srv = nh.advertiseService("uav_pid_tuning", &OffBoard::TuningPID, this);
 
     // Default PID
-    Kp_yaw = 1.2;
+    Kp_yaw = 1;
     Ki_yaw = 0.2;
     Kd_yaw = 0;
 
@@ -106,11 +106,16 @@ void OffBoard::stream_point()
     while (ros::ok())
     {
         ros::spinOnce();
-        
+
         switch (stateUav)
         {
-        case 1: // navigate to waypoint mode
+        case 1: // navigate to waypoint with yawrate mode
             navToWaypoint(targetX, targetY, targetZ, hz);
+            _navMessage.header.seq++;
+            pub_navMessage.publish(_navMessage);
+            break;
+        case 3: // navigate to waypoint without yawrate mode
+            navToWayPointV2(targetX, targetY, targetZ, hz);
             _navMessage.header.seq++;
             pub_navMessage.publish(_navMessage);
             break;
@@ -151,14 +156,43 @@ void OffBoard::navToWaypoint(float x, float y, float z, int rate)
     _targetYaw = PidControl_yaw(_uavpose.pose.position.x, _uavpose.pose.position.y,
                                 x, y, _uavpose.pose.orientation.z, 1.0 / rate);
     _targetVx = PidControl_vx(_uavpose.pose.position.x, _uavpose.pose.position.y,
-                              x, y, _uavpose.pose.orientation.z, 1.0 / rate);
+                              x, y, 1.0 / rate);
     _targetVz = Control_vz(_uavpose.pose.position.z, z);
-    _navMessage.yaw_rate = _targetYaw;
+    _navMessage.yaw_rate = _targetYaw * 0.8;
     _navMessage.velocity.x = _targetVx;
     _navMessage.velocity.z = _targetVz;
 
     _navMessage.header.stamp = ros::Time::now();
     if (_targetYaw == 0)
+    {
+        stateUav = 2;
+        ROS_INFO("Switch to HOLD MODE!");
+    }
+}
+
+void OffBoard::navToWayPointV2(float x, float y, float z, int rate)
+{
+    float _targetV, Vx, Vy, Vz, e_x, e_y, alpha_g, yaw;
+    _targetV = PidControl_vx(_uavpose.pose.position.x, _uavpose.pose.position.y,
+                             x, y, 1.0 / rate);
+
+    e_x = x - _uavpose.pose.position.x;
+    e_y = y - _uavpose.pose.position.y;
+
+    alpha_g = atan2(e_y, e_x);
+    yaw = alpha_g - _uavpose.pose.orientation.z;
+    yaw = atan2(sin(yaw), cos(yaw));
+
+    Vx = cos(yaw) * _targetV;
+    Vy = sin(yaw) * _targetV;
+    Vz = Control_vz(_uavpose.pose.position.z, z);
+    // Change nav message
+    _navMessage.header.stamp = ros::Time::now();
+    _navMessage.velocity.x = Vx;
+    _navMessage.velocity.y = Vy;
+    _navMessage.velocity.z = Vz;
+
+    if (abs(e_x) < 0.1 && abs(e_y) < 0.1)
     {
         stateUav = 2;
         ROS_INFO("Switch to HOLD MODE!");
@@ -172,9 +206,11 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
         stateUav = 0;
         _setpoint.pose.position.z = req.z;
         offboardAndArm();
+        res.success = true;
         res.message = "TAKE OFF MODE!";
+        return true;
     }
-    else
+    else if (req.nav_mode == 1) // nav with yawrate
     {
         Ei_yaw = 0;
         Ei_vx = 0;
@@ -193,9 +229,33 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
         targetZ = req.z;
         res.success = true;
         res.message = "NAVIGATE TO WAYPOINT!";
+        return true;
     }
+    else if (req.nav_mode == 3) // nav without yawrate
+    {
+        Ei_vx = 0;
+        stateUav = 3;
+        _navMessage.type_mask = PositionTarget::IGNORE_PX +
+                                PositionTarget::IGNORE_PY +
+                                PositionTarget::IGNORE_PZ +
+                                PositionTarget::IGNORE_AFX +
+                                PositionTarget::IGNORE_AFY +
+                                PositionTarget::IGNORE_AFZ +
+                                PositionTarget::IGNORE_YAW;
 
-    return true;
+        // _navMessage.position.z = req.z;
+        targetX = req.x;
+        targetY = req.y;
+        targetZ = req.z;
+        res.success = true;
+        res.message = "NAVIGATE TO WAYPOINT!";
+        return true;
+    }
+    else {
+        res.message = "Dont know nav mode!!";
+        res.success = false;
+        return false;
+    }
 }
 
 bool OffBoard::TuningPID(uavlab411::PidTuning::Request &req, uavlab411::PidTuning::Response &res)
@@ -273,13 +333,12 @@ float OffBoard::PidControl_yaw(float x_cur, float y_cur, float x_goal, float y_g
     return w;
 }
 
-float OffBoard::PidControl_vx(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt)
+float OffBoard::PidControl_vx(float x_cur, float y_cur, float x_goal, float y_goal, float dt)
 {
 
     float e_x;
     float e_y;
     float Error_pre = Error_vx;
-    float alpha_g;
     float Ed_vx;
     float w;
     // Calculate distance from UAV to goal

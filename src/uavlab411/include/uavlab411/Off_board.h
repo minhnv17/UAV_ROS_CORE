@@ -41,6 +41,7 @@ class OffBoard
         void offboardAndArm();
         void stream_point();
         void navToWaypoint(float x, float y,float z, int rate);
+        void navToWayPointV2(float x, float y, float z, int rate);
         void holdMode();
         void takeOffMode(float z);
 
@@ -61,6 +62,6 @@ class OffBoard
 
         float targetX, targetY, targetZ;
         float PidControl_yaw(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt);
-        float PidControl_vx(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt);
+        float PidControl_vx(float x_cur, float y_cur, float x_goal, float y_goal, float dt);
         float Control_vz(float z_cur, float z_goal);
 };
