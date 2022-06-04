@@ -109,8 +109,12 @@ void OffBoard::stream_point()
 
         switch (stateUav)
         {
-        case 1: // navigate to waypoint mode
-            // navToWaypoint(targetX, targetY, targetZ, hz);
+        case 1: // navigate to waypoint with yawrate mode
+            navToWaypoint(targetX, targetY, targetZ, hz);
+            _navMessage.header.seq++;
+            pub_navMessage.publish(_navMessage);
+            break;
+        case 3: // navigate to waypoint without yawrate mode
             navToWayPointV2(targetX, targetY, targetZ, hz);
             _navMessage.header.seq++;
             pub_navMessage.publish(_navMessage);
@@ -204,8 +208,9 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
         offboardAndArm();
         res.success = true;
         res.message = "TAKE OFF MODE!";
+        return true;
     }
-    else
+    else if (req.nav_mode == 1) // nav with yawrate
     {
         Ei_yaw = 0;
         Ei_vx = 0;
@@ -224,9 +229,33 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
         targetZ = req.z;
         res.success = true;
         res.message = "NAVIGATE TO WAYPOINT!";
+        return true;
     }
+    else if (req.nav_mode == 3) // nav without yawrate
+    {
+        Ei_vx = 0;
+        stateUav = 3;
+        _navMessage.type_mask = PositionTarget::IGNORE_PX +
+                                PositionTarget::IGNORE_PY +
+                                PositionTarget::IGNORE_PZ +
+                                PositionTarget::IGNORE_AFX +
+                                PositionTarget::IGNORE_AFY +
+                                PositionTarget::IGNORE_AFZ +
+                                PositionTarget::IGNORE_YAW;
 
-    return true;
+        // _navMessage.position.z = req.z;
+        targetX = req.x;
+        targetY = req.y;
+        targetZ = req.z;
+        res.success = true;
+        res.message = "NAVIGATE TO WAYPOINT!";
+        return true;
+    }
+    else {
+        res.message = "Dont know nav mode!!";
+        res.success = false;
+        return false;
+    }
 }
 
 bool OffBoard::TuningPID(uavlab411::PidTuning::Request &req, uavlab411::PidTuning::Response &res)
