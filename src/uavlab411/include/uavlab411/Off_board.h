@@ -17,6 +17,13 @@ using namespace mavros_msgs;
 
 #define TIMEOUT(msg, timeout) (msg.header.stamp.isZero() || (ros::Time::now() - msg.header.stamp > timeout) )
 
+enum Mode {
+    Takeoff = 0,
+    Hold = 2,
+    NavYaw = 1,
+    NavNoYaw = 3
+};
+
 class OffBoard
 {
     public:
@@ -55,10 +62,10 @@ class OffBoard
         geometry_msgs::PoseStamped _uavpose;
         geometry_msgs::Twist _cmdvel_msg;
 
+        Mode _curMode;
         // PID Controller parameter
         float Kp_yaw, Kd_yaw, Ki_yaw, Ei_yaw, Error_yaw;
         float Kp_vx, Kd_vx, Ki_vx, Ei_vx, Error_vx;
-        int stateUav;
 
         float targetX, targetY, targetZ;
         float PidControl_yaw(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt);

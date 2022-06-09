@@ -23,7 +23,7 @@ OffBoard::OffBoard()
     Ki_vx = 0;
     Kd_vx = 0;
     // Default state hold mode
-    stateUav = 2;
+    _curMode = Hold;
     stream_point();
 }
 
@@ -99,7 +99,7 @@ void OffBoard::offboardAndArm()
 
 void OffBoard::stream_point()
 {
-    int hz = 40;
+    int hz = 50;
     ros::Rate r(hz);
     _navMessage.coordinate_frame = PositionTarget::FRAME_BODY_NED;
     _navMessage.header.seq = 0;
@@ -107,25 +107,25 @@ void OffBoard::stream_point()
     {
         ros::spinOnce();
 
-        switch (stateUav)
+        switch (_curMode)
         {
-        case 1: // navigate to waypoint with yawrate mode
+        case NavYaw: // navigate to waypoint with yawrate mode
             navToWaypoint(targetX, targetY, targetZ, hz);
             _navMessage.header.seq++;
             pub_navMessage.publish(_navMessage);
             break;
-        case 3: // navigate to waypoint without yawrate mode
+        case NavNoYaw: // navigate to waypoint without yawrate mode
             navToWayPointV2(targetX, targetY, targetZ, hz);
             _navMessage.header.seq++;
             pub_navMessage.publish(_navMessage);
             break;
-        case 2: // Hold mode
+        case Hold: // Hold mode
             holdMode();
             break;
-        case 0: // Takeoff mode
+        case Takeoff: // Takeoff mode
             if (_uavpose.pose.position.z > _setpoint.pose.position.z - 0.1)
             {
-                stateUav = 2; // switch to hold mode
+                _curMode = Hold; // switch to hold mode
             }
             pub_setpoint.publish(_setpoint);
             break;
@@ -165,7 +165,7 @@ void OffBoard::navToWaypoint(float x, float y, float z, int rate)
     _navMessage.header.stamp = ros::Time::now();
     if (_targetYaw == 0)
     {
-        stateUav = 2;
+        _curMode = Hold;
         ROS_INFO("Switch to HOLD MODE!");
     }
 }
@@ -194,7 +194,7 @@ void OffBoard::navToWayPointV2(float x, float y, float z, int rate)
 
     if (abs(e_x) < 0.1 && abs(e_y) < 0.1)
     {
-        stateUav = 2;
+        _curMode = Hold;
         ROS_INFO("Switch to HOLD MODE!");
     }
 }
@@ -203,7 +203,7 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
 {
     if (req.auto_arm)
     {
-        stateUav = 0;
+        _curMode = Takeoff;
         _setpoint.pose.position.z = req.z;
         offboardAndArm();
         res.success = true;
@@ -214,7 +214,7 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
     {
         Ei_yaw = 0;
         Ei_vx = 0;
-        stateUav = 1;
+        _curMode = NavYaw;
         _navMessage.type_mask = PositionTarget::IGNORE_PX +
                                 PositionTarget::IGNORE_PY +
                                 PositionTarget::IGNORE_PZ +
@@ -234,7 +234,7 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
     else if (req.nav_mode == 3) // nav without yawrate
     {
         Ei_vx = 0;
-        stateUav = 3;
+        _curMode = NavNoYaw;
         _navMessage.type_mask = PositionTarget::IGNORE_PX +
                                 PositionTarget::IGNORE_PY +
                                 PositionTarget::IGNORE_PZ +
