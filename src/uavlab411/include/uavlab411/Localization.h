@@ -5,6 +5,7 @@
 #include "sensor_msgs/NavSatFix.h"
 #include "std_msgs/String.h"
 #include "sensor_msgs/BatteryState.h"
+#include <sensor_msgs/Range.h>
 #include <string>
 #include <math.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>

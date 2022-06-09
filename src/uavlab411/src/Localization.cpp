@@ -3,11 +3,12 @@
 //define global variable
 double z_barometer;
 geometry_msgs::PoseStamped uav_pose;
+sensor_msgs::Range _rangefinder;
 uint64_t pose_seq = 0;
 // define subscriber and publisher
 ros::Publisher uavpose_pub;
 
-ros::Subscriber main_optical_flow_pose_sub;
+ros::Subscriber main_optical_flow_pose_sub, range_finder_sub;
 ros::Subscriber local_position_sub;
 
 //handle subscribe topic funtion
@@ -37,7 +38,7 @@ void handle_main_optical_flow_pose(const geometry_msgs::PoseWithCovarianceStampe
     double x_map,y_map,z_map;
     x_map = vector_long*cos(alpha + yaw_aruco + PI/2);
     y_map = vector_long*sin(alpha + yaw_aruco + PI/2);
-    z_map = msg.pose.pose.position.z;
+    z_map = _rangefinder.range;
     double yaw_map = yaw_aruco + PI/2;
     yaw_map = (yaw_map > PI) ? yaw_map - 2*PI : yaw_map;
     
@@ -67,6 +68,10 @@ void handle_local_position(const geometry_msgs::PoseStamped& msg)
     z_barometer = msg.pose.position.z;
 }
 
+void handle_rangefinder(const sensor_msgs::RangeConstPtr &range)
+{
+    _rangefinder = *range;
+}
 int main(int argc, char **argv)
 {
     ros::init(argc,argv, "Navigate_aruco");
@@ -74,7 +79,7 @@ int main(int argc, char **argv)
 
     main_optical_flow_pose_sub = nh.subscribe("/aruco_map/pose",1,&handle_main_optical_flow_pose);
     local_position_sub = nh.subscribe("mavros/local_position/pose",1,&handle_local_position);
-
+    range_finder_sub = nh.subscribe("/rangefinder/range", 1, &handle_rangefinder);
     // Publish
     uavpose_pub = nh.advertise<geometry_msgs::PoseStamped>("uavlab411/uavpose", 1);
 
