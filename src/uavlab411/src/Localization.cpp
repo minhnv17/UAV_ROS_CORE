@@ -37,7 +37,7 @@ void handle_main_optical_flow_pose(const geometry_msgs::PoseWithCovarianceStampe
     double x_map,y_map,z_map;
     x_map = vector_long*cos(alpha + yaw_aruco + PI/2);
     y_map = vector_long*sin(alpha + yaw_aruco + PI/2);
-    z_map = z_barometer;
+    z_map = msg.pose.pose.position.z;
     double yaw_map = yaw_aruco + PI/2;
     yaw_map = (yaw_map > PI) ? yaw_map - 2*PI : yaw_map;
     

@@ -59,7 +59,7 @@ void OffBoard::offboardAndArm()
             {
                 break;
             }
-            else if (ros::Time::now() - start > ros::Duration(3))
+            else if (ros::Time::now() - start > ros::Duration(5))
             {
                 throw std::runtime_error("Offboard timeout!");
             }
