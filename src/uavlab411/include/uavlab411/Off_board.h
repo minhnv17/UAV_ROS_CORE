@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <sensor_msgs/Range.h>
 #include <math.h>
 
 #include <mavros_msgs/State.h>
@@ -12,6 +13,7 @@
 
 #include <uavlab411/Navigate.h>
 #include <uavlab411/PidTuning.h>
+#include <uavlab411/Takeoff.h>
 
 using namespace mavros_msgs;
 
@@ -34,15 +36,16 @@ class OffBoard
         ros::Publisher pub_setpoint, pub_navMessage;
         // Subscriber
         ros::Subscriber sub_state;
-        ros::Subscriber sub_uavpose;
+        ros::Subscriber sub_uavpose, sub_rangefinder;
 
         // Service
         ros::ServiceClient srv_arming, srv_set_mode;
-        ros::ServiceServer navigate_srv, pid_tuning_srv;
+        ros::ServiceServer navigate_srv, pid_tuning_srv, takeoff_srv;
 
         // Function handle
         void handleState(const mavros_msgs::State::ConstPtr& msg);
         void handlePoses(const geometry_msgs::PoseStamped::ConstPtr& msg);
+        void handleRangefinder(const sensor_msgs::RangeConstPtr &msg);
 
         // Main function
         void offboardAndArm();
@@ -54,13 +57,16 @@ class OffBoard
 
         // Service func
         bool Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::Response &res);
+        bool TakeoffSrv(uavlab411::Takeoff::Request &req, uavlab411::Takeoff::Response &res);
         bool TuningPID(uavlab411::PidTuning::Request &req, uavlab411::PidTuning::Response &res);
         // Variable
         mavros_msgs::State cur_state;
         mavros_msgs::PositionTarget _navMessage, _holdMessage;
+        sensor_msgs::Range _rangefinder;
         geometry_msgs::PoseStamped _setpoint;
         geometry_msgs::PoseStamped _uavpose;
         geometry_msgs::Twist _cmdvel_msg;
+        ros::Duration _uavpose_timemout, _rangefinder_timeout;
 
         Mode _curMode;
         // PID Controller parameter

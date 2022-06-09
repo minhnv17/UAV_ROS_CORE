@@ -4,6 +4,7 @@ OffBoard::OffBoard()
 {
     sub_state = nh.subscribe<mavros_msgs::State>("mavros/state", 1, &OffBoard::handleState, this);
     sub_uavpose = nh.subscribe<geometry_msgs::PoseStamped>("uavlab411/uavpose", 1, &OffBoard::handlePoses, this);
+    sub_rangefinder = nh.subscribe("/rangefinder/range", 1, &OffBoard::handleRangefinder, this);
 
     pub_setpoint = nh.advertise<geometry_msgs::PoseStamped>("mavros/setpoint_position/local", 20);
     pub_navMessage = nh.advertise<mavros_msgs::PositionTarget>("mavros/setpoint_raw/local", 20);
@@ -13,7 +14,10 @@ OffBoard::OffBoard()
 
     navigate_srv = nh.advertiseService("uavnavigate", &OffBoard::Navigate, this);
     pid_tuning_srv = nh.advertiseService("uav_pid_tuning", &OffBoard::TuningPID, this);
+    takeoff_srv = nh.advertiseService("uavlab411/takeoff", &OffBoard::TakeoffSrv, this);
 
+    _uavpose_timemout = ros::Duration(nh.param("uavpose_timeout", 2.0));
+    _rangefinder_timeout = ros::Duration(nh.param("rangefinder_timeout", 1.0));
     // Default PID
     Kp_yaw = 1;
     Ki_yaw = 0.2;
@@ -35,6 +39,11 @@ void OffBoard::handleState(const mavros_msgs::State::ConstPtr &msg)
 void OffBoard::handlePoses(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {
     _uavpose = *msg;
+}
+
+void OffBoard::handleRangefinder(const sensor_msgs::RangeConstPtr &msg)
+{
+    _rangefinder = *msg;
 }
 
 void OffBoard::offboardAndArm()
@@ -110,24 +119,39 @@ void OffBoard::stream_point()
         switch (_curMode)
         {
         case NavYaw: // navigate to waypoint with yawrate mode
-            navToWaypoint(targetX, targetY, targetZ, hz);
-            _navMessage.header.seq++;
-            pub_navMessage.publish(_navMessage);
+            if (!TIMEOUT(_uavpose, _uavpose_timemout))
+            {
+                navToWaypoint(targetX, targetY, targetZ, hz);
+                _navMessage.header.seq++;
+                pub_navMessage.publish(_navMessage);
+            }
+            else
+                _curMode = Hold;
             break;
         case NavNoYaw: // navigate to waypoint without yawrate mode
-            navToWayPointV2(targetX, targetY, targetZ, hz);
-            _navMessage.header.seq++;
-            pub_navMessage.publish(_navMessage);
+            if (!TIMEOUT(_uavpose, _uavpose_timemout))
+            {
+                navToWayPointV2(targetX, targetY, targetZ, hz);
+                _navMessage.header.seq++;
+                pub_navMessage.publish(_navMessage);
+            }
+            else
+                _curMode = Hold;
             break;
         case Hold: // Hold mode
             holdMode();
             break;
         case Takeoff: // Takeoff mode
-            if (_uavpose.pose.position.z > _setpoint.pose.position.z - 0.1)
+            if (!TIMEOUT(_rangefinder, _rangefinder_timeout))
             {
-                _curMode = Hold; // switch to hold mode
+                if (_rangefinder.range > _setpoint.pose.position.z - 0.1)
+                {
+                    _curMode = Hold; // switch to hold mode
+                }
+                pub_setpoint.publish(_setpoint);
             }
-            pub_setpoint.publish(_setpoint);
+            else
+                _curMode = Hold;
             break;
         default:
             break;
@@ -201,8 +225,72 @@ void OffBoard::navToWayPointV2(float x, float y, float z, int rate)
 
 bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::Response &res)
 {
-    if (req.auto_arm)
+    if (!TIMEOUT(_uavpose, _uavpose_timemout) && !TIMEOUT(_rangefinder, _rangefinder_timeout))
     {
+
+        switch (req.nav_mode)
+        {
+        case NavYaw:
+            Ei_yaw = 0;
+            Ei_vx = 0;
+            _curMode = NavYaw;
+            _navMessage.type_mask = PositionTarget::IGNORE_PX +
+                                    PositionTarget::IGNORE_PY +
+                                    PositionTarget::IGNORE_PZ +
+                                    PositionTarget::IGNORE_AFX +
+                                    PositionTarget::IGNORE_AFY +
+                                    PositionTarget::IGNORE_AFZ +
+                                    PositionTarget::IGNORE_YAW;
+
+            // _navMessage.position.z = req.z;
+            targetX = req.x;
+            targetY = req.y;
+            targetZ = req.z;
+            res.success = true;
+            res.message = "NAVIGATE TO WAYPOINT!";
+            return true;
+            break;
+
+        case NavNoYaw:
+            Ei_vx = 0;
+            _curMode = NavNoYaw;
+            _navMessage.type_mask = PositionTarget::IGNORE_PX +
+                                    PositionTarget::IGNORE_PY +
+                                    PositionTarget::IGNORE_PZ +
+                                    PositionTarget::IGNORE_AFX +
+                                    PositionTarget::IGNORE_AFY +
+                                    PositionTarget::IGNORE_AFZ +
+                                    PositionTarget::IGNORE_YAW;
+
+            // _navMessage.position.z = req.z;
+            targetX = req.x;
+            targetY = req.y;
+            targetZ = req.z;
+            res.success = true;
+            res.message = "NAVIGATE TO WAYPOINT!";
+            return true;
+            break;
+
+        default:
+            res.message = "DONT KNOW THIS NAV MODE!";
+            res.success = false;
+            return false;
+            break;
+        }
+    }
+    else
+    {
+        res.message = "NO LOCAL POSITION OR/AND NO RANGE FINDER, PLS CHECK!";
+        res.success = false;
+        return false;
+    }
+}
+
+bool OffBoard::TakeoffSrv(uavlab411::Takeoff::Request &req, uavlab411::Takeoff::Response &res)
+{
+    if (!TIMEOUT(_rangefinder, _rangefinder_timeout))
+    {
+
         _curMode = Takeoff;
         _setpoint.pose.position.z = req.z;
         offboardAndArm();
@@ -210,50 +298,10 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
         res.message = "TAKE OFF MODE!";
         return true;
     }
-    else if (req.nav_mode == 1) // nav with yawrate
+    else
     {
-        Ei_yaw = 0;
-        Ei_vx = 0;
-        _curMode = NavYaw;
-        _navMessage.type_mask = PositionTarget::IGNORE_PX +
-                                PositionTarget::IGNORE_PY +
-                                PositionTarget::IGNORE_PZ +
-                                PositionTarget::IGNORE_AFX +
-                                PositionTarget::IGNORE_AFY +
-                                PositionTarget::IGNORE_AFZ +
-                                PositionTarget::IGNORE_YAW;
-
-        // _navMessage.position.z = req.z;
-        targetX = req.x;
-        targetY = req.y;
-        targetZ = req.z;
-        res.success = true;
-        res.message = "NAVIGATE TO WAYPOINT!";
-        return true;
-    }
-    else if (req.nav_mode == 3) // nav without yawrate
-    {
-        Ei_vx = 0;
-        _curMode = NavNoYaw;
-        _navMessage.type_mask = PositionTarget::IGNORE_PX +
-                                PositionTarget::IGNORE_PY +
-                                PositionTarget::IGNORE_PZ +
-                                PositionTarget::IGNORE_AFX +
-                                PositionTarget::IGNORE_AFY +
-                                PositionTarget::IGNORE_AFZ +
-                                PositionTarget::IGNORE_YAW;
-
-        // _navMessage.position.z = req.z;
-        targetX = req.x;
-        targetY = req.y;
-        targetZ = req.z;
-        res.success = true;
-        res.message = "NAVIGATE TO WAYPOINT!";
-        return true;
-    }
-    else {
-        res.message = "Dont know nav mode!!";
         res.success = false;
+        res.message = "NO RANGE FINDER, CANT TAKEOFF!";
         return false;
     }
 }

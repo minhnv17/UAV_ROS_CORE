@@ -9,9 +9,10 @@ uavpose = 0
 is_pose = False
 wps = [[0, 1], [1, 1], [1, 2], [2, 2], [3, 4], [4, 4]]
 navigate_to = rospy.ServiceProxy('uavnavigate', srv.Navigate)
+takeoff_srv = rospy.ServiceProxy('uavlab411/takeoff', srv.Takeoff)
 
-def navigate_wait(x, y, z, nav_mode, tolerance=0.2, auto_arm=False):
-    res = navigate_to(x=x, y=y, z=z, nav_mode=nav_mode, auto_arm=auto_arm)
+def navigate_wait(x, y, z, nav_mode, tolerance=0.2):
+    res = navigate_to(x=x, y=y, z=z, nav_mode=nav_mode)
 
     if not res.success:
         return res
@@ -27,7 +28,7 @@ def navigate_wait(x, y, z, nav_mode, tolerance=0.2, auto_arm=False):
 
 
 def takeoff(z):
-    res = navigate_to(z=z, auto_arm=True)
+    res = takeoff_srv(z=z)
     if not res.success:
         return res
     wait_for_telemetry()
@@ -58,6 +59,6 @@ for i in wps:
     wait_for_telemetry()
     print("navigate to wp " + str(i))
     navigate_wait(x=i[0], y=i[1], z=1, nav_mode=3,
-                  tolerance=0.2, auto_arm=False)
+                  tolerance=0.2)
 
 rospy.spin()
