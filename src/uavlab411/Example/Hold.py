@@ -51,13 +51,5 @@ rospy.Subscriber('uavlab411/uavpose', PoseStamped, uavpose_cb)
 # takeoff
 print("Take off now!")
 takeoff(1.5)
-rospy.sleep(3)
-
-# navigate
-for i in wps:
-    wait_for_telemetry()
-    print("navigate to wp " + str(i))
-    navigate_wait(x=i[0], y=i[1], z=1, nav_mode=3,
-                  tolerance=0.2, auto_arm=False)
 
 rospy.spin()

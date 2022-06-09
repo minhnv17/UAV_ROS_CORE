@@ -18,7 +18,7 @@ OffBoard::OffBoard()
     Kp_yaw = 1;
     Ki_yaw = 0.2;
     Kd_yaw = 0;
-
+    targetZ = 0;
     Kp_vx = 0.2;
     Ki_vx = 0;
     Kd_vx = 0;
@@ -59,7 +59,7 @@ void OffBoard::offboardAndArm()
             {
                 break;
             }
-            else if (ros::Time::now() - start > ros::Duration(3))
+            else if (ros::Time::now() - start > ros::Duration(5))
             {
                 throw std::runtime_error("Offboard timeout!");
             }
