@@ -11,7 +11,7 @@ wps = [[0, 1], [1, 1], [1, 2], [2, 2], [3, 4], [4, 4]]
 navigate_to = rospy.ServiceProxy('uavnavigate', srv.Navigate)
 takeoff_srv = rospy.ServiceProxy('uavlab411/takeoff', srv.Takeoff)
 
-def navigate_wait(x, y, z, nav_mode, tolerance=0.2):
+def navigate_wait(x, y, z, nav_mode, tolerance=0.15):
     res = navigate_to(x=x, y=y, z=z, nav_mode=nav_mode)
 
     if not res.success:

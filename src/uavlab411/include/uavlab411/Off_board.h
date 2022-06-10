@@ -42,6 +42,7 @@ class OffBoard
         ros::ServiceClient srv_arming, srv_set_mode;
         ros::ServiceServer navigate_srv, pid_tuning_srv, takeoff_srv;
 
+        ros::Timer setpoint_timer;
         // Function handle
         void handleState(const mavros_msgs::State::ConstPtr& msg);
         void handlePoses(const geometry_msgs::PoseStamped::ConstPtr& msg);
@@ -54,6 +55,7 @@ class OffBoard
         void navToWayPointV2(float x, float y, float z, int rate);
         void holdMode();
         void takeOffMode(float z);
+        bool checkState();
 
         // Service func
         bool Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::Response &res);
@@ -69,6 +71,7 @@ class OffBoard
         ros::Duration _uavpose_timemout, _rangefinder_timeout;
 
         Mode _curMode;
+        int hz;
         // PID Controller parameter
         float Kp_yaw, Kd_yaw, Ki_yaw, Ei_yaw, Error_yaw;
         float Kp_vx, Kd_vx, Ki_vx, Ei_vx, Error_vx;
