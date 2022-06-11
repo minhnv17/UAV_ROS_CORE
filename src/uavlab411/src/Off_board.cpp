@@ -266,7 +266,7 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
         default:
             res.message = "DONT KNOW THIS NAV MODE!";
             res.success = false;
-            return false;
+            return true;
             break;
         }
     }
@@ -274,7 +274,7 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
     {
         res.message = "NO LOCAL POSITION OR/AND NO RANGE FINDER OR/AND NO OFFB MODE - NO ARM, PLS CHECK!";
         res.success = false;
-        return false;
+        return true;
     }
 }
 
@@ -295,15 +295,14 @@ bool OffBoard::TakeoffSrv(uavlab411::Takeoff::Request &req, uavlab411::Takeoff::
             res.message = "TAKE OFF MODE!";
             return true;
         }
-        else
-            return false;
     }
     else
     {
         res.success = false;
         res.message = "NO RANGE FINDER, CANT TAKEOFF!";
-        return false;
+        return true;
     }
+    return true;
 }
 
 bool OffBoard::TuningPID(uavlab411::PidTuning::Request &req, uavlab411::PidTuning::Response &res)
