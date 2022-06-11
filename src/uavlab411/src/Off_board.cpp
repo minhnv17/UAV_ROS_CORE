@@ -31,8 +31,6 @@ OffBoard::OffBoard()
     // Initial value
     update_frequency = 35;
     _navMessage.coordinate_frame = PositionTarget::FRAME_BODY_NED;
-    _navMessage.header.seq = 0;
-    _setpoint.header.seq = 0;
     setpoint_timer = nh.createTimer(ros::Duration(1 / update_frequency),
                                     boost::bind(&OffBoard::publish_point, this), false, false);
 }
@@ -120,21 +118,23 @@ void OffBoard::publish_point()
         if (!TIMEOUT(_uavpose, _uavpose_timemout))
         {
             navToWaypoint(targetX, targetY, targetZ, update_frequency);
-            _navMessage.header.seq++;
+            _navMessage.header.stamp = ros::Time::now();
             pub_navMessage.publish(_navMessage);
         }
         else
             _curMode = Hold;
+            ROS_INFO("Switch to HOLD MODE!");
         break;
     case NavNoYaw: // navigate to waypoint without yawrate mode
         if (!TIMEOUT(_uavpose, _uavpose_timemout))
         {
             navToWayPointV2(targetX, targetY, targetZ, update_frequency);
-            _navMessage.header.seq++;
+            _navMessage.header.stamp = ros::Time::now();
             pub_navMessage.publish(_navMessage);
         }
         else
             _curMode = Hold;
+            ROS_INFO("Switch to HOLD MODE!");
         break;
     case Hold: // Hold mode
         holdMode();
@@ -146,11 +146,11 @@ void OffBoard::publish_point()
             {
                 _curMode = Hold; // switch to hold mode
             }
-            _setpoint.header.seq++;
             pub_setpoint.publish(_setpoint);
         }
         else
             _curMode = Hold;
+            ROS_INFO("Switch to HOLD MODE!");
         break;
     default:
         break;
@@ -162,7 +162,7 @@ void OffBoard::holdMode()
     _holdMessage.type_mask = PositionTarget::IGNORE_YAW +
                              PositionTarget::IGNORE_YAW_RATE;
     _holdMessage.coordinate_frame = PositionTarget::FRAME_BODY_NED;
-    _navMessage.header.seq++;
+    _holdMessage.header.stamp = ros::Time::now();
     _holdMessage.position.z = targetZ;
     pub_navMessage.publish(_holdMessage);
 }
@@ -182,7 +182,6 @@ void OffBoard::navToWaypoint(float x, float y, float z, int rate)
     _navMessage.velocity.x = _targetVx;
     _navMessage.velocity.z = _targetVz;
 
-    _navMessage.header.stamp = ros::Time::now();
     if (_targetYaw == 0)
     {
         _curMode = Hold;
