@@ -253,7 +253,7 @@ int main(int argc, char **argv)
 	ros::NodeHandle nh, nh_priv("~");
 
 	// param
-	nh_priv.param("port", port, 35602);
+	nh_priv.param("port", port, 12345);
 
 	// Initial publisher
 	manual_control_pub = nh.advertise<mavros_msgs::ManualControl>("mavros/manual_control/send", 1);
