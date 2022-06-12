@@ -72,7 +72,7 @@ private:
     ros::Duration _uavpose_timemout, _rangefinder_timeout;
 
     Mode _curMode;
-    int update_frequency;
+    float update_frequency;
     // PID Controller parameter
     float Kp_yaw, Kd_yaw, Ki_yaw, Ei_yaw, Error_yaw;
     float Kp_vx, Kd_vx, Ki_vx, Ei_vx, Error_vx;

@@ -29,9 +29,9 @@ OffBoard::OffBoard()
     // Default state hold mode
     _curMode = Hold;
     // Initial value
-    update_frequency = 35;
+    update_frequency = 35.0;
     _navMessage.coordinate_frame = PositionTarget::FRAME_BODY_NED;
-    setpoint_timer = nh.createTimer(ros::Duration(1 / update_frequency),
+    setpoint_timer = nh.createTimer(ros::Duration(1.0 / update_frequency),
                                     boost::bind(&OffBoard::publish_point, this), false, false);
 }
 
