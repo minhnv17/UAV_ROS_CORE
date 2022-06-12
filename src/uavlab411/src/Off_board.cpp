@@ -12,12 +12,14 @@ OffBoard::OffBoard()
     srv_arming = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
     srv_set_mode = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
 
-    navigate_srv = nh.advertiseService("uavnavigate", &OffBoard::Navigate, this);
-    pid_tuning_srv = nh.advertiseService("uav_pid_tuning", &OffBoard::TuningPID, this);
+    navigate_srv = nh.advertiseService("uavlab411/navigate", &OffBoard::Navigate, this);
+    pid_tuning_srv = nh.advertiseService("uavlab411/pid_tuning", &OffBoard::TuningPID, this);
     takeoff_srv = nh.advertiseService("uavlab411/takeoff", &OffBoard::TakeoffSrv, this);
+    land_srv = nh.advertiseService("uavlab411/land", &OffBoard::Land, this);
 
     _uavpose_timemout = ros::Duration(nh.param("uavpose_timeout", 2.0));
     _rangefinder_timeout = ros::Duration(nh.param("rangefinder_timeout", 3.0));
+    _land_timeout = ros::Duration(nh.param("land_timeout", 3.0));
     // Default PID
     Kp_yaw = 1;
     Ki_yaw = 0.2;
@@ -29,10 +31,12 @@ OffBoard::OffBoard()
     // Default state hold mode
     _curMode = Hold;
     // Initial value
+    Vmax = 0.6;
     update_frequency = 35.0;
     _navMessage.coordinate_frame = PositionTarget::FRAME_BODY_NED;
     setpoint_timer = nh.createTimer(ros::Duration(1.0 / update_frequency),
-                                    boost::bind(&OffBoard::publish_point, this), false, false);
+                                    boost::bind(&OffBoard::publish_point, this),
+                                    false, false);
 }
 
 void OffBoard::handleState(const mavros_msgs::State::ConstPtr &msg)
@@ -122,8 +126,10 @@ void OffBoard::publish_point()
             pub_navMessage.publish(_navMessage);
         }
         else
+        {
             _curMode = Hold;
             ROS_INFO("Switch to HOLD MODE!");
+        }
         break;
     case NavNoYaw: // navigate to waypoint without yawrate mode
         if (!TIMEOUT(_uavpose, _uavpose_timemout))
@@ -133,8 +139,10 @@ void OffBoard::publish_point()
             pub_navMessage.publish(_navMessage);
         }
         else
+        {
             _curMode = Hold;
             ROS_INFO("Switch to HOLD MODE!");
+        }
         break;
     case Hold: // Hold mode
         holdMode();
@@ -142,15 +150,19 @@ void OffBoard::publish_point()
     case Takeoff: // Takeoff mode
         if (!TIMEOUT(_rangefinder, _rangefinder_timeout))
         {
-            if (_rangefinder.range > _setpoint.pose.position.z - 0.1)
+            if (_rangefinder.range > _setpoint.pose.position.z - 0.1 && 
+                _rangefinder.range < _setpoint.pose.position.z + 0.1)
             {
-                _curMode = Hold; // switch to hold mode
+                _curMode = Hold;
+                ROS_INFO("Switch to HOLD MODE!");
             }
             pub_setpoint.publish(_setpoint);
         }
         else
+        {
             _curMode = Hold;
             ROS_INFO("Switch to HOLD MODE!");
+        }
         break;
     default:
         break;
@@ -163,7 +175,6 @@ void OffBoard::holdMode()
                              PositionTarget::IGNORE_YAW_RATE;
     _holdMessage.coordinate_frame = PositionTarget::FRAME_BODY_NED;
     _holdMessage.header.stamp = ros::Time::now();
-    _holdMessage.position.z = targetZ;
     pub_navMessage.publish(_holdMessage);
 }
 
@@ -225,6 +236,7 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
         switch (req.nav_mode)
         {
         case NavYaw:
+            ROS_INFO("NAV TO WP WITH YAW CHANGED");
             Ei_yaw = 0;
             Ei_vx = 0;
             _curMode = NavYaw;
@@ -246,6 +258,7 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
             break;
 
         case NavNoYaw:
+            ROS_INFO("NAV TO WP WITHOUT YAW CHANGED");
             Ei_vx = 0;
             _curMode = NavNoYaw;
             _navMessage.type_mask = PositionTarget::IGNORE_PX +
@@ -282,6 +295,7 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
 
 bool OffBoard::TakeoffSrv(uavlab411::Takeoff::Request &req, uavlab411::Takeoff::Response &res)
 {
+    ROS_INFO("TAKE OFF MODE");
     publish_point();
     setpoint_timer.start();
     if (!TIMEOUT(_rangefinder, _rangefinder_timeout))
@@ -304,6 +318,45 @@ bool OffBoard::TakeoffSrv(uavlab411::Takeoff::Request &req, uavlab411::Takeoff::
         return true;
     }
     return true;
+}
+
+bool OffBoard::Land(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res)
+{
+    try
+    {
+
+        static mavros_msgs::SetMode sm;
+        sm.request.custom_mode = "AUTO.LAND";
+
+        if (!srv_set_mode.call(sm))
+            throw std::runtime_error("Can't call set_mode service");
+
+        if (!sm.response.mode_sent)
+            throw std::runtime_error("Can't send set_mode request");
+
+        static ros::Rate r(10);
+        auto start = ros::Time::now();
+        while (ros::ok())
+        {
+            if (cur_state.mode == "AUTO.LAND")
+            {
+                res.success = true;
+                return true;
+            }
+            if (ros::Time::now() - start > _land_timeout)
+                throw std::runtime_error("Land request timed out");
+
+            ros::spinOnce();
+            r.sleep();
+        }
+    }
+    catch (const std::exception &e)
+    {
+        res.message = e.what();
+        ROS_INFO("%s", e.what());
+        return true;
+    }
+    return false;
 }
 
 bool OffBoard::TuningPID(uavlab411::PidTuning::Request &req, uavlab411::PidTuning::Response &res)

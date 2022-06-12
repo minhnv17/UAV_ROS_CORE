@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <std_srvs/Trigger.h>
 #include <sensor_msgs/Range.h>
 #include <math.h>
 
@@ -41,7 +42,7 @@ private:
 
     // Service
     ros::ServiceClient srv_arming, srv_set_mode;
-    ros::ServiceServer navigate_srv, pid_tuning_srv, takeoff_srv;
+    ros::ServiceServer navigate_srv, pid_tuning_srv, takeoff_srv, land_srv;
 
     ros::Timer setpoint_timer;
     // Function handle
@@ -62,6 +63,7 @@ private:
     bool Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::Response &res);
     bool TakeoffSrv(uavlab411::Takeoff::Request &req, uavlab411::Takeoff::Response &res);
     bool TuningPID(uavlab411::PidTuning::Request &req, uavlab411::PidTuning::Response &res);
+    bool Land(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res);
     // Variable
     mavros_msgs::State cur_state;
     mavros_msgs::PositionTarget _navMessage, _holdMessage;
@@ -69,7 +71,7 @@ private:
     geometry_msgs::PoseStamped _setpoint;
     geometry_msgs::PoseStamped _uavpose;
     geometry_msgs::Twist _cmdvel_msg;
-    ros::Duration _uavpose_timemout, _rangefinder_timeout;
+    ros::Duration _uavpose_timemout, _rangefinder_timeout, _land_timeout;
 
     Mode _curMode;
     float update_frequency;
@@ -77,7 +79,7 @@ private:
     float Kp_yaw, Kd_yaw, Ki_yaw, Ei_yaw, Error_yaw;
     float Kp_vx, Kd_vx, Ki_vx, Ei_vx, Error_vx;
 
-    float targetX, targetY, targetZ;
+    float targetX, targetY, targetZ, Vmax;
     float PidControl_yaw(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt);
     float PidControl_vx(float x_cur, float y_cur, float x_goal, float y_goal, float dt);
     float Control_vz(float z_cur, float z_goal);
