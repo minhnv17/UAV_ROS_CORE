@@ -174,7 +174,7 @@ Astar(250, img, 27, 43, 202,70 )
 print(theWay)
 
 for Point in theWay:
-    img[Point[1]][Point[0]] = 100;
+    img[Point[1]][Point[0]] = 100
     
 plt.imshow(img, interpolation='nearest')
 plt.show()

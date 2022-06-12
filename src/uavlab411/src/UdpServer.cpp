@@ -47,13 +47,12 @@ ros::Publisher manual_control_pub;
 ros::Publisher control_robot_pub;
 bool check_receiver = false;
 
-void handle_msg_set_mode(char buff[]) 
+void handle_cmd_set_mode(int mode) 
 {
-	uint16_t new_mode = ReadINT16(buff, 2);
-	if(state.mode != mode_define[new_mode])
+	if(state.mode != mode_define[mode])
 	{
 		static mavros_msgs::SetMode sm;
-		sm.request.custom_mode = mode_define[new_mode];
+		sm.request.custom_mode = mode_define[mode];
 
 		if (!set_mode.call(sm))
 			ROS_INFO("Error calling set_mode service");
@@ -72,10 +71,9 @@ void handle_msg_control_robot(char buff[])
 	control_robot_pub.publish(msg_robot);
 }
 
-void handle_arm_disarm(char buff[]) 
+void handle_cmd_arm_disarm(bool flag)
 {
-	uint16_t new_action = ReadINT16(buff, 2);
-	if(!TIMEOUT(state, state_timeout) && !state.armed && new_action == 1) // Arming
+	if(!TIMEOUT(state, state_timeout) && !state.armed && flag == true) // Arming
 	{
 		ros::Time start = ros::Time::now();
 		ROS_INFO("arming");
@@ -96,9 +94,28 @@ void handle_arm_disarm(char buff[])
 			}
 		}
 	}
-	else if(!TIMEOUT(state, state_timeout) && state.armed && new_action == 0) // Disarming
+	else if(!TIMEOUT(state, state_timeout) && state.armed && flag == false) // Disarming
 	{
-		ROS_INFO("DISARM");
+		ROS_INFO("DISARM"); // TODO: handle disarm motor
+	}
+}
+
+void handle_command(uavlink_message_t message)
+{
+	uavlink_command_t command_msg;
+	uavlink_command_decode(&message, &command_msg);
+	switch (command_msg.command)
+	{
+	case UAVLINK_COMMAND_SET_MODE:
+		handle_cmd_set_mode((int)command_msg.param1);
+		break;
+	
+	case UAVLINK_CMD_ARM_DISARM:
+		handle_cmd_arm_disarm((bool)command_msg.param1);
+		break;
+		
+	default:
+		break;
 	}
 }
 
@@ -214,20 +231,18 @@ void readingSocketThread()
 		}
 		else {
 			if(!check_receiver) check_receiver = true;
-			uint16_t msgid = ReadINT16(buff, 0);
-			switch (msgid)
+			uavlink_message_t message;
+			memcpy(&message, buff, sizeof(uavlink_message_t));
+			switch (message.msgid)
 			{
-				case MAVLINK_MSG_ID_SET_MODE:
-					handle_msg_set_mode(buff);
-					break;
-
 				case MAVLINK_MSG_ID_MANUAL_CONTROL:
 					handle_msg_manual_control(bsize, buff);
 					break;
 
-				case MAV_CMD_COMPONENT_ARM_DISARM:
-					handle_arm_disarm(buff);
+				case UAVLINK_MSG_ID_COMMAND:
+					handle_command(message);
 					break;
+
 				case CONTROL_ROBOT_MSG_ID:
 					handle_msg_control_robot(buff);
 					break;
@@ -243,7 +258,6 @@ void writeSocketMessage(char buff[], int length)
 	if (check_receiver) // Need received first
 	{
 		int len = sendto(sockfd, (const char *)buff, length + 1, 0, (const struct sockaddr *) &android_addr, android_addr_size);
-		// ROS_INFO("%d", len);
 	}
 }
 

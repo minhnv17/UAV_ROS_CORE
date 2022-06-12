@@ -2,14 +2,16 @@ import rospy
 import math
 from uavlab411 import srv
 from geometry_msgs.msg import PoseStamped
+from std_srvs.srv import Trigger
 
 rospy.init_node("navigate_node")
 
 uavpose = 0
 is_pose = False
 wps = [[0, 1], [1, 1], [1, 2], [2, 2], [3, 4], [4, 4]]
-navigate_to = rospy.ServiceProxy('uavnavigate', srv.Navigate)
+navigate_to = rospy.ServiceProxy('uavlab411/navigate', srv.Navigate)
 takeoff_srv = rospy.ServiceProxy('uavlab411/takeoff', srv.Takeoff)
+land_srv = rospy.ServiceProxy('uavlab411/land', Trigger)
 
 def navigate_wait(x, y, z, nav_mode, tolerance=0.15):
     res = navigate_to(x=x, y=y, z=z, nav_mode=nav_mode)
@@ -61,4 +63,5 @@ for i in wps:
     navigate_wait(x=i[0], y=i[1], z=1, nav_mode=3,
                   tolerance=0.2)
 
+land_srv()
 rospy.spin()
