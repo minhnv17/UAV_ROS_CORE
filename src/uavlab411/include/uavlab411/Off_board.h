@@ -38,7 +38,7 @@ private:
     ros::Publisher pub_setpoint, pub_navMessage;
     // Subscriber
     ros::Subscriber sub_state;
-    ros::Subscriber sub_uavpose, sub_rangefinder;
+    ros::Subscriber sub_uavpose, sub_local_position;
 
     // Service
     ros::ServiceClient srv_arming, srv_set_mode;
@@ -48,7 +48,7 @@ private:
     // Function handle
     void handleState(const mavros_msgs::State::ConstPtr &msg);
     void handlePoses(const geometry_msgs::PoseStamped::ConstPtr &msg);
-    void handleRangefinder(const sensor_msgs::RangeConstPtr &msg);
+    void handleLocalPosition(const geometry_msgs::PoseStamped::ConstPtr &msg);
 
     // Main function
     void offboardAndArm();
@@ -56,6 +56,7 @@ private:
     void navToWaypoint(float x, float y, float z, int rate);
     void navToWayPointV2(float x, float y, float z, int rate);
     void holdMode();
+    void getCurrentPosition();
     void takeOffMode(float z);
     bool checkState();
 
@@ -67,14 +68,16 @@ private:
     // Variable
     mavros_msgs::State cur_state;
     mavros_msgs::PositionTarget _navMessage, _holdMessage;
-    sensor_msgs::Range _rangefinder;
     geometry_msgs::PoseStamped _setpoint;
     geometry_msgs::PoseStamped _uavpose;
+    geometry_msgs::PoseStamped _uavpose_local_position;
     geometry_msgs::Twist _cmdvel_msg;
-    ros::Duration _uavpose_timemout, _rangefinder_timeout, _land_timeout;
+    ros::Duration _uavpose_timemout, _uavpose_local_position_timeout, _land_timeout;
 
     Mode _curMode;
     float update_frequency;
+    // z map when booting UAV
+    double z_map;
     // PID Controller parameter
     float Kp_yaw, Kd_yaw, Ki_yaw, Ei_yaw, Error_yaw;
     float Kp_vx, Kd_vx, Ki_vx, Ei_vx, Error_vx;

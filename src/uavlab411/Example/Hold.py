@@ -35,6 +35,6 @@ rospy.Subscriber('uavlab411/uavpose', PoseStamped, uavpose_cb)
 # takeoff
 print("Take off now!")
 takeoff(1.5)
-rospy.sleep(3)
+rospy.sleep(10)
 
 rospy.spin()
