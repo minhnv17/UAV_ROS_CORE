@@ -292,7 +292,6 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
         case NavNoYaw:
             ROS_INFO("NAV TO WP WITHOUT YAW CHANGED");
             Ei_vx = 0;
-            getMaxVelocity = true;
             _curMode = NavNoYaw;
             _navMessage.type_mask = PositionTarget::IGNORE_PX +
                                     PositionTarget::IGNORE_PY +
