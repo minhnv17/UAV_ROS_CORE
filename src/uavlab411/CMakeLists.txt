@@ -59,6 +59,7 @@ add_service_files(
   Navigate.srv
   PidTuning.srv
   Takeoff.srv
+  Telemetry.srv
 )
 
 ## Generate actions in the 'action' folder

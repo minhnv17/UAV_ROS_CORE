@@ -15,6 +15,7 @@
 #include <uavlab411/Navigate.h>
 #include <uavlab411/PidTuning.h>
 #include <uavlab411/Takeoff.h>
+#include <uavlab411/Telemetry.h>
 
 using namespace mavros_msgs;
 
@@ -42,7 +43,7 @@ private:
 
     // Service
     ros::ServiceClient srv_arming, srv_set_mode;
-    ros::ServiceServer navigate_srv, pid_tuning_srv, takeoff_srv, land_srv;
+    ros::ServiceServer navigate_srv, pid_tuning_srv, takeoff_srv, land_srv, telemetry_srv;
 
     ros::Timer setpoint_timer;
     // Function handle
@@ -65,6 +66,7 @@ private:
     bool TakeoffSrv(uavlab411::Takeoff::Request &req, uavlab411::Takeoff::Response &res);
     bool TuningPID(uavlab411::PidTuning::Request &req, uavlab411::PidTuning::Response &res);
     bool Land(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res);
+    bool GetTelemetry(uavlab411::Telemetry::Request &req, uavlab411::Telemetry::Response &res);
     // Variable
     mavros_msgs::State cur_state;
     mavros_msgs::PositionTarget _navMessage, _holdMessage;

@@ -6,4 +6,3 @@ int8 nav_mode
 ---
 bool success
 string message
-float32 z_map

@@ -16,7 +16,8 @@ OffBoard::OffBoard()
     pid_tuning_srv = nh.advertiseService("uavlab411/pid_tuning", &OffBoard::TuningPID, this);
     takeoff_srv = nh.advertiseService("uavlab411/takeoff", &OffBoard::TakeoffSrv, this);
     land_srv = nh.advertiseService("uavlab411/land", &OffBoard::Land, this);
-
+    telemetry_srv = nh.advertiseService("uavlab411/telemetry", &OffBoard::GetTelemetry, this);
+    
     _uavpose_timemout = ros::Duration(nh.param("uavpose_timeout", 2.0));
     _uavpose_local_position_timeout = ros::Duration(nh.param("rangefinder_timeout", 3.0));
     _land_timeout = ros::Duration(nh.param("land_timeout", 3.0));
@@ -36,7 +37,8 @@ OffBoard::OffBoard()
     // Initial value
     Vmax = 0.6;
     update_frequency = 35.0;
-    _navMessage.coordinate_frame = PositionTarget::FRAME_BODY_NED;
+    _navMessage.coordinate_frame = PositionTarget::FRAME_LOCAL_NED;
+    z_map = _uavpose_local_position.pose.position.z;
     setpoint_timer = nh.createTimer(ros::Duration(1.0 / update_frequency),
                                     boost::bind(&OffBoard::publish_point, this),
                                     false, false);
@@ -180,11 +182,13 @@ void OffBoard::holdMode()
 {
     pub_navMessage.publish(_holdMessage);
 }
+
 void OffBoard::getCurrentPosition()
 {
     _holdMessage.header.stamp = ros::Time::now();
     _holdMessage.position = _uavpose_local_position.pose.position;
 }
+
 void OffBoard::navToWaypoint(float x, float y, float z, int rate)
 {
     float _targetYaw;
@@ -228,14 +232,49 @@ void OffBoard::navToWayPointV2(float x, float y, float z, int rate)
     _navMessage.header.stamp = ros::Time::now();
     _navMessage.velocity.x = Vx;
     _navMessage.velocity.y = Vy;
-    _navMessage.position.z = z_map+z;
+    _navMessage.position.z = z_map + z;
     if (abs(e_x) < 0.1 && abs(e_y) < 0.1)
     {
         getCurrentPosition();
-        _holdMessage.position.z = z_map+z;
+        _holdMessage.position.z = z_map + z;
         _curMode = Hold;
         ROS_INFO("Switch to HOLD MODE!");
     }
+}
+
+bool OffBoard::GetTelemetry(uavlab411::Telemetry::Request &req, uavlab411::Telemetry::Response &res)
+{
+    ros::Time stamp = ros::Time::now();
+
+    if (req.mode.empty())
+        req.mode = "indoor";
+
+    res.mode = req.mode;
+    res.x = NAN;
+    res.y = NAN;
+    res.z = NAN;
+    res.lat = NAN;
+    res.lon = NAN;
+    res.alt = NAN;
+    res.vx = NAN;
+    res.vy = NAN;
+    res.vz = NAN;
+    res.pitch = NAN;
+    res.roll = NAN;
+    res.yaw = NAN;
+    res.pitch_rate = NAN;
+    res.roll_rate = NAN;
+    res.yaw_rate = NAN;
+    res.voltage = NAN;
+    res.cell_voltage = NAN;
+
+    if(req.mode == "indoor")
+    {
+        res.x = _uavpose.pose.position.x;
+        res.y = _uavpose.pose.position.y;
+        res.z = _uavpose.pose.position.z;
+    }
+    return true;
 }
 
 bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::Response &res)
@@ -251,7 +290,7 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
             _curMode = NavYaw;
             _navMessage.type_mask = PositionTarget::IGNORE_PX +
                                     PositionTarget::IGNORE_PY +
-                                    // PositionTarget::IGNORE_VZ +
+                                    PositionTarget::IGNORE_VZ +
                                     PositionTarget::IGNORE_AFX +
                                     PositionTarget::IGNORE_AFY +
                                     PositionTarget::IGNORE_AFZ +
@@ -263,7 +302,6 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
             targetZ = req.z;
             res.success = true;
             res.message = "NAVIGATE TO WAYPOINT!";
-            res.z_map = z_map;
             return true;
             break;
 
@@ -273,7 +311,7 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
             _curMode = NavNoYaw;
             _navMessage.type_mask = PositionTarget::IGNORE_PX +
                                     PositionTarget::IGNORE_PY +
-                                    // PositionTarget::IGNORE_VZ +
+                                    PositionTarget::IGNORE_VZ +
                                     PositionTarget::IGNORE_AFX +
                                     PositionTarget::IGNORE_AFY +
                                     PositionTarget::IGNORE_AFZ +
@@ -285,14 +323,12 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
             targetZ = req.z;
             res.success = true;
             res.message = "NAVIGATE TO WAYPOINT!";
-            res.z_map = z_map;
             return true;
             break;
 
         default:
             res.message = "DONT KNOW THIS NAV MODE!";
             res.success = false;
-            res.z_map = z_map;
             return true;
             break;
         }
@@ -314,8 +350,7 @@ bool OffBoard::TakeoffSrv(uavlab411::Takeoff::Request &req, uavlab411::Takeoff::
     {
         offboardAndArm();
         if (checkState())
-        {           
-            z_map = _uavpose_local_position.pose.position.z;
+        {
             _setpoint.pose.position.z = req.z + z_map;
             _setpoint.pose.position.x = _uavpose_local_position.pose.position.x;
             _setpoint.pose.position.y = _uavpose_local_position.pose.position.y;
@@ -339,7 +374,6 @@ bool OffBoard::Land(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response
 {
     try
     {
-
         static mavros_msgs::SetMode sm;
         sm.request.custom_mode = "AUTO.LAND";
 
@@ -451,7 +485,6 @@ float OffBoard::PidControl_yaw(float x_cur, float y_cur, float x_goal, float y_g
 
 float OffBoard::PidControl_vx(float x_cur, float y_cur, float x_goal, float y_goal, float dt)
 {
-
     float e_x;
     float e_y;
     float Error_pre = Error_vx;
@@ -468,18 +501,8 @@ float OffBoard::PidControl_vx(float x_cur, float y_cur, float x_goal, float y_go
 
     // PID Function
     w = Kp_vx * Error_vx + Ki_vx * Ei_vx + Kd_vx * Ed_vx;
-    w = w > 0.5 ? 0.5 : w < 0.2 ? 0.2
-                                : w;
+    w = w > 0.5 ? 0.5 : w;
     return w;
-}
-
-float OffBoard::Control_vz(float z_cur, float z_goal)
-{
-    float error_z = z_goal - z_cur;
-    if (abs(error_z) > 0.2)
-        return error_z / 2;
-    else
-        return 0;
 }
 
 bool OffBoard::checkState()
