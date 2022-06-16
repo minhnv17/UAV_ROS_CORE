@@ -17,7 +17,7 @@ OffBoard::OffBoard()
     takeoff_srv = nh.advertiseService("uavlab411/takeoff", &OffBoard::TakeoffSrv, this);
     land_srv = nh.advertiseService("uavlab411/land", &OffBoard::Land, this);
     telemetry_srv = nh.advertiseService("uavlab411/telemetry", &OffBoard::GetTelemetry, this);
-    
+
     _uavpose_timemout = ros::Duration(nh.param("uavpose_timeout", 2.0));
     _uavpose_local_position_timeout = ros::Duration(nh.param("rangefinder_timeout", 3.0));
     _land_timeout = ros::Duration(nh.param("land_timeout", 3.0));
@@ -26,8 +26,8 @@ OffBoard::OffBoard()
     Ki_yaw = 0.2;
     Kd_yaw = 0;
     targetZ = 0;
-    Kp_vx = 0.2;
-    Ki_vx = 0;
+    Kp_vx = 0.5;
+    Ki_vx = 0.01;
     Kd_vx = 0;
     // Default state hold mode
     _holdMessage.type_mask = PositionTarget::IGNORE_YAW +
@@ -35,10 +35,8 @@ OffBoard::OffBoard()
     _holdMessage.coordinate_frame = PositionTarget::FRAME_LOCAL_NED;
     _curMode = Hold;
     // Initial value
-    Vmax = 0.6;
     update_frequency = 35.0;
     _navMessage.coordinate_frame = PositionTarget::FRAME_LOCAL_NED;
-    z_map = _uavpose_local_position.pose.position.z;
     setpoint_timer = nh.createTimer(ros::Duration(1.0 / update_frequency),
                                     boost::bind(&OffBoard::publish_point, this),
                                     false, false);
@@ -92,6 +90,8 @@ void OffBoard::offboardAndArm()
 
     if (!cur_state.armed)
     {
+        z_map = _uavpose_local_position.pose.position.z;
+        ROS_INFO("ZMAP: %f", z_map);
         ros::Time start = ros::Time::now();
         ROS_INFO("arming");
         mavros_msgs::CommandBool srv;
@@ -157,8 +157,8 @@ void OffBoard::publish_point()
     case Takeoff: // Takeoff mode
         if (!TIMEOUT(_uavpose_local_position, _uavpose_local_position_timeout))
         {
-            if (_uavpose.pose.position.z > _setpoint.pose.position.z - 0.1 &&
-                _uavpose.pose.position.z < _setpoint.pose.position.z + 0.1)
+            if (_uavpose.pose.position.z - z_map > _setpoint.pose.position.z - 0.1 &&
+                _uavpose.pose.position.z - z_map < _setpoint.pose.position.z + 0.1)
             {
                 getCurrentPosition();
                 _curMode = Hold;
@@ -217,7 +217,8 @@ void OffBoard::navToWayPointV2(float x, float y, float z, int rate)
     float _targetV, Vx, Vy, Vz, e_x, e_y, alpha_g, yaw;
     _targetV = PidControl_vx(_uavpose.pose.position.x, _uavpose.pose.position.y,
                              x, y, 1.0 / rate);
-
+    _targetV = _targetV / 2.0;
+    ROS_INFO("TARGET V: %f", _targetV);
     e_x = x - _uavpose.pose.position.x;
     e_y = y - _uavpose.pose.position.y;
 
@@ -227,7 +228,7 @@ void OffBoard::navToWayPointV2(float x, float y, float z, int rate)
 
     Vx = cos(yaw) * _targetV;
     Vy = sin(yaw) * _targetV;
-    // Vz = Control_vz(_uavpose.pose.position.z, z);
+    
     // Change nav message
     _navMessage.header.stamp = ros::Time::now();
     _navMessage.velocity.x = Vx;
@@ -236,7 +237,6 @@ void OffBoard::navToWayPointV2(float x, float y, float z, int rate)
     if (abs(e_x) < 0.1 && abs(e_y) < 0.1)
     {
         getCurrentPosition();
-        _holdMessage.position.z = z_map + z;
         _curMode = Hold;
         ROS_INFO("Switch to HOLD MODE!");
     }
@@ -244,36 +244,20 @@ void OffBoard::navToWayPointV2(float x, float y, float z, int rate)
 
 bool OffBoard::GetTelemetry(uavlab411::Telemetry::Request &req, uavlab411::Telemetry::Response &res)
 {
-    ros::Time stamp = ros::Time::now();
-
-    if (req.mode.empty())
-        req.mode = "indoor";
-
-    res.mode = req.mode;
     res.x = NAN;
     res.y = NAN;
     res.z = NAN;
-    res.lat = NAN;
-    res.lon = NAN;
-    res.alt = NAN;
-    res.vx = NAN;
-    res.vy = NAN;
-    res.vz = NAN;
-    res.pitch = NAN;
-    res.roll = NAN;
-    res.yaw = NAN;
-    res.pitch_rate = NAN;
-    res.roll_rate = NAN;
-    res.yaw_rate = NAN;
     res.voltage = NAN;
     res.cell_voltage = NAN;
 
-    if(req.mode == "indoor")
-    {
-        res.x = _uavpose.pose.position.x;
-        res.y = _uavpose.pose.position.y;
-        res.z = _uavpose.pose.position.z;
-    }
+    res.mode = _curMode;
+    if(!TIMEOUT(_uavpose, _uavpose_timemout))res.isPose = true;
+    else res.isPose = false;
+    res.x = _uavpose.pose.position.x;
+    res.y = _uavpose.pose.position.y;
+    res.z = _uavpose.pose.position.z;
+    res.z_map = z_map;
+    
     return true;
 }
 
@@ -308,6 +292,7 @@ bool OffBoard::Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::
         case NavNoYaw:
             ROS_INFO("NAV TO WP WITHOUT YAW CHANGED");
             Ei_vx = 0;
+            getMaxVelocity = true;
             _curMode = NavNoYaw;
             _navMessage.type_mask = PositionTarget::IGNORE_PX +
                                     PositionTarget::IGNORE_PY +
@@ -501,7 +486,6 @@ float OffBoard::PidControl_vx(float x_cur, float y_cur, float x_goal, float y_go
 
     // PID Function
     w = Kp_vx * Error_vx + Ki_vx * Ei_vx + Kd_vx * Ed_vx;
-    w = w > 0.5 ? 0.5 : w;
     return w;
 }
 

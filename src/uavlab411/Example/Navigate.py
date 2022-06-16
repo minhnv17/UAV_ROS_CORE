@@ -22,7 +22,7 @@ def navigate_wait(x, y, z, nav_mode, tolerance=0.15):
     time = rospy.get_rostime()
     while not rospy.is_shutdown():
         telemetry = get_telemetry("indoor")
-        if math.sqrt((telemetry.x - x)**2 + (telemetry.y - y)**2 + (telemetry.z - z)**2) < tolerance:
+        if(telemetry.mode != nav_mode):
             return res
         rospy.sleep(0.2)
         if (rospy.get_rostime() - time > rospy.Duration(20)):
@@ -37,25 +37,18 @@ def takeoff(z):
     wait_for_telemetry()
     while not rospy.is_shutdown():
         telemetry = get_telemetry("indoor")
-        if abs(telemetry.z - z) > 0.1:
+        if(telemetry.mode != 0):
             return res
         rospy.sleep(0.2)
 
 def wait_for_telemetry():
-    while not is_pose:
+    while not get_telemetry("indoor").isPose:
         rospy.sleep(0.5)
-
-def uavpose_cb(msg):
-    global uavpose, is_pose
-    is_pose = True
-    uavpose = msg
-
-rospy.Subscriber('uavlab411/uavpose', PoseStamped, uavpose_cb)
 
 # takeoff
 print("Take off now!")
 takeoff(1.5)
-rospy.sleep(10)
+rospy.sleep(2)
 
 # navigate
 for i in wps:
@@ -66,4 +59,3 @@ for i in wps:
     rospy.sleep(4)
 
 land_srv()
-rospy.spin()

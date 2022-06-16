@@ -29,10 +29,16 @@ enum Mode
     NavNoYaw = 3
 };
 
+float ScalePid(float data, float maxData, float minData, float heso)
+{
+    return (((data - minData) * heso) / (maxData - minData));
+}
+
 class OffBoard
 {
 public:
     OffBoard();
+
 private:
     ros::NodeHandle nh;
     // Publisher
@@ -65,7 +71,7 @@ private:
     bool Navigate(uavlab411::Navigate::Request &req, uavlab411::Navigate::Response &res);
     bool TakeoffSrv(uavlab411::Takeoff::Request &req, uavlab411::Takeoff::Response &res);
     bool TuningPID(uavlab411::PidTuning::Request &req, uavlab411::PidTuning::Response &res);
-    bool Land(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res);
+    bool Land(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res);
     bool GetTelemetry(uavlab411::Telemetry::Request &req, uavlab411::Telemetry::Response &res);
     // Variable
     mavros_msgs::State cur_state;
@@ -84,7 +90,7 @@ private:
     float Kp_yaw, Kd_yaw, Ki_yaw, Ei_yaw, Error_yaw;
     float Kp_vx, Kd_vx, Ki_vx, Ei_vx, Error_vx;
 
-    float targetX, targetY, targetZ, Vmax;
+    float targetX, targetY, targetZ;
     float PidControl_yaw(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt);
     float PidControl_vx(float x_cur, float y_cur, float x_goal, float y_goal, float dt);
     float Control_vz(float z_cur, float z_goal);
