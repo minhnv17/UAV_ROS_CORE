@@ -222,7 +222,7 @@ uint8_t _mav_trim_payload(const char *payload, uint8_t length)
 
 int8_t mode_to_int(string mode)
 {
-	for(int8_t i = 0; i < sizeof(mode_define); i++)
+	for(int8_t i = 0; i < sizeof(mode_define) -1; i++)
 	{
 		if (mode == mode_define[i]) return i;
 	}
@@ -236,19 +236,10 @@ int8_t battery_remaining_calculate(float voltage)
 
 uint16_t uavlink_msg_to_send_buffer(uint8_t *buf, const uavlink_message_t *msg)
 {
-	uint8_t length = msg->len;
-	//length = _mav_trim_payload(_MAV_PAYLOAD(msg), length);
 	buf[0] = msg->msgid;
-	switch(msg->msgid){
-		case UAVLINK_MSG_ID_STATE:
-			length = UAVLINK_MSG_ID_STATE_LEN; break;
-		case UAVLINK_MSG_ID_GLOBAL_POSITION_INT:
-			length = UAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN; break;
-		default: 
-			length = 0; break;
-	}
-	memcpy(&buf[1], _MAV_PAYLOAD(msg), length);
-	return length;
+	buf[1] = msg->len;
+	memcpy(&buf[2], _MAV_PAYLOAD(msg), msg->len);
+	return msg->len + 1 + 1;
 }
 
 // Function handle receiver msg

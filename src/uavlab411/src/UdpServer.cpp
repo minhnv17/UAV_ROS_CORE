@@ -14,7 +14,6 @@
 #include "sensor_msgs/BatteryState.h"
 #include "uavlab411/UdpServer.h"
 #include "uavlab411/control_robot_msg.h"
-
 /* ---- Global variable ---- */
 // Socket server
 int sockfd;
@@ -150,7 +149,7 @@ void handleState(const mavros_msgs::State& s)
 	uavlink_state_encode(&msg, &send_state);
 
 	char buf[300];
-	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
+	uint16_t len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
 	writeSocketMessage(buf, len);
 }
 
@@ -171,7 +170,7 @@ void handleLocalPosition(const nav_msgs::Odometry& o)
 	uavlink_message_t msg;
 	uavlink_global_position_encode(&msg,&global_pos);
 	char buf[300];
-	unsigned len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
+	uint16_t len = uavlink_msg_to_send_buffer((uint8_t*)buf, &msg);
 	writeSocketMessage(buf, len);
 	r.sleep();
 }
