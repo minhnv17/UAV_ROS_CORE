@@ -43,6 +43,7 @@ private:
     ros::NodeHandle nh;
     // Publisher
     ros::Publisher pub_navMessage;
+    ros::Publisher pub_pointMessage;
     // Subscriber
     ros::Subscriber sub_state;
     ros::Subscriber sub_uavpose, sub_local_position;
@@ -75,8 +76,8 @@ private:
     bool GetTelemetry(uavlab411::Telemetry::Request &req, uavlab411::Telemetry::Response &res);
     // Variable
     mavros_msgs::State cur_state;
-    mavros_msgs::PositionTarget _navMessage, _pointMessage;
-    geometry_msgs::PoseStamped _setpoint;
+    mavros_msgs::PositionTarget _navMessage, _holdMessage;
+    geometry_msgs::PoseStamped _setpoint, _pointMessage;
     geometry_msgs::PoseStamped _uavpose;
     geometry_msgs::PoseStamped _uavpose_local_position;
     geometry_msgs::Twist _cmdvel_msg;
