@@ -1,10 +1,21 @@
-#include "ros/ros.h"
-#include "mavros_msgs/State.h"
-#include "nav_msgs/Odometry.h"
-#include "sensor_msgs/NavSatFix.h"
-#include "std_msgs/String.h"
-#include "sensor_msgs/BatteryState.h"
+#include <ros/ros.h>
 #include <string>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <thread>
+#include <nav_msgs/Odometry.h>
+#include <sensor_msgs/NavSatFix.h>
+#include <sensor_msgs/BatteryState.h>
+#include <std_msgs/String.h>
+#include <geometry_msgs/PoseStamped.h>
+#include "mavros_msgs/State.h"
+#include "mavros_msgs/ManualControl.h"
+#include "mavros_msgs/CommandBool.h"
+#include "mavros_msgs/SetMode.h"
+
+#include "uavlab411/control_robot_msg.h"
 
 using std::string;
 
@@ -24,6 +35,7 @@ int  			createSocket(int);
 void 			handleState(const mavros_msgs::State&);
 void 			handleLocalPosition(const nav_msgs::Odometry&);
 void 			handleGlobalPosition(const sensor_msgs::NavSatFix&);
+void			handleUavPose(const geometry_msgs::PoseStampedConstPtr&);
 void 			stateTimedOut(const ros::TimerEvent&);
 void 			handleBatteryState(const sensor_msgs::BatteryState&);
 
