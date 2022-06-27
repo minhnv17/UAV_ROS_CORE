@@ -2,6 +2,7 @@
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/PositionTarget.h>
 #include "nav_msgs/Odometry.h"
+#include <nav_msgs/Path.h>
 #include "sensor_msgs/NavSatFix.h"
 #include "std_msgs/String.h"
 #include "sensor_msgs/BatteryState.h"

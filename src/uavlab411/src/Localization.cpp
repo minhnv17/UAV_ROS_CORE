@@ -2,11 +2,12 @@
 
 //define global variable
 double z_barometer;
-geometry_msgs::PoseStamped uav_pose;
+geometry_msgs::PoseStamped uav_pose, pose_path;
+nav_msgs::Path path_uav;
 sensor_msgs::Range _rangefinder;
 uint64_t pose_seq = 0;
 // define subscriber and publisher
-ros::Publisher uavpose_pub;
+ros::Publisher uavpose_pub, path_pub;
 
 ros::Subscriber main_optical_flow_pose_sub, range_finder_sub;
 ros::Subscriber local_position_sub;
@@ -59,8 +60,15 @@ void handle_main_optical_flow_pose(const geometry_msgs::PoseWithCovarianceStampe
     uav_pose.pose.position.z = z_map;
 
     uav_pose.pose.orientation.z = yaw_map;
+    pose_path.header = uav_pose.header;
+    pose_path.pose.position = uav_pose.pose.position;
+    // quaternionTFToMsg(orientation_map, pose_path.pose.orientation);
     uavpose_pub.publish(uav_pose);
     pose_seq++;
+
+    path_uav.header = msg.header;
+    path_uav.poses.push_back(pose_path);
+    path_pub.publish(path_uav);
 }
 
 void handle_local_position(const geometry_msgs::PoseStamped& msg)
@@ -82,7 +90,7 @@ int main(int argc, char **argv)
     range_finder_sub = nh.subscribe("/rangefinder/range", 1, &handle_rangefinder);
     // Publish
     uavpose_pub = nh.advertise<geometry_msgs::PoseStamped>("uavlab411/uavpose", 1);
-
+    path_pub = nh.advertise<nav_msgs::Path>("/pathuav", 10);
     ros::spin();
     return 0;
 }
