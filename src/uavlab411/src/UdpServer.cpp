@@ -112,21 +112,16 @@ void handle_command(uavlink_message_t message)
 	}
 }
 
-void handle_msg_manual_control(int bsize, char buff[])
+void handle_msg_manual_control(uavlink_message_t message)
 {
-	if (bsize != 10)
-	{
-		ROS_ERROR_THROTTLE(30, "Wrong UDP packet size: %d", bsize);
-	}
-	else 
-	{
-		manual_control_msg.x = ReadINT16(buff, 2);
-		manual_control_msg.y = ReadINT16(buff, 4);
-		manual_control_msg.z = ReadINT16(buff, 6);
-		manual_control_msg.r = ReadINT16(buff, 8);
+	uavlink_msg_manual_control manual_msg;
+	uavlink_manual_control_decode(&message, &manual_msg);
+	manual_control_msg.x = manual_msg.x;
+	manual_control_msg.y = manual_msg.y;
+	manual_control_msg.z = manual_msg.z;
+	manual_control_msg.r = manual_msg.r;
 
-		manual_control_pub.publish(manual_control_msg);
-	}
+	manual_control_pub.publish(manual_control_msg);
 }
 
 // Handle state from UAV
@@ -243,8 +238,8 @@ void readingSocketThread()
 			memcpy(&message, buff, sizeof(uavlink_message_t));
 			switch (message.msgid)
 			{
-				case MAVLINK_MSG_ID_MANUAL_CONTROL:
-					handle_msg_manual_control(bsize, buff);
+				case UAVLINK_MSG_ID_MANUAL_CONTROL:
+					handle_msg_manual_control(message);
 					break;
 
 				case UAVLINK_MSG_ID_COMMAND:

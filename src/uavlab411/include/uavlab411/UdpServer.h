@@ -20,7 +20,6 @@
 using std::string;
 
 #define CONTROL_ROBOT_MSG_ID 45
-#define MAVLINK_MSG_ID_MANUAL_CONTROL 69
 #define UAVLINK_CMD_SET_MODE 21
 #define UAVLINK_CMD_TAKEOFF 22
 #define UAVLINK_CMD_ARM_DISARM 23
@@ -174,6 +173,26 @@ static inline void uavlink_local_position_decode(const uavlink_message_t *msg, u
 	memcpy(uavlink_local_position, _MAV_PAYLOAD(msg), UAVLINK_MSG_ID_LOCAL_POSITION_INT_LEN);
 }
 
+typedef struct __uavlink_msg_manual_control_t
+{
+	int x;
+	int y;
+	int z;
+	int r;
+} uavlink_msg_manual_control;
+#define UAVLINK_MSG_ID_MANUAL_CONTROL 6
+#define UAVLINK_MSG_ID_MANUAL_CONTROL_LEN 16
+
+static inline void uavlink_manual_control_decode(const uavlink_message_t *msg, uavlink_msg_manual_control *uavlink_manual_control)
+{
+	memset(uavlink_manual_control, 0, UAVLINK_MSG_ID_MANUAL_CONTROL_LEN);
+	int index = 0;
+	memcpy(&uavlink_manual_control->x, _MAV_PAYLOAD(msg) + index, 4);
+	memcpy(&uavlink_manual_control->y, _MAV_PAYLOAD(msg) + (index += 4), 4);
+	memcpy(&uavlink_manual_control->z, _MAV_PAYLOAD(msg) + (index += 4), 4);
+	memcpy(&uavlink_manual_control->r, _MAV_PAYLOAD(msg) + (index += 4), 4);
+}
+
 typedef struct __uavlink_msg_waypoint_t
 {
 	uint16_t wpId; /*< [degE7] Latitude, expressed*/
@@ -272,7 +291,7 @@ uint16_t uavlink_msg_to_send_buffer(uint8_t *buf, const uavlink_message_t *msg)
 }
 
 // Function handle receiver msg
-void handle_msg_manual_control(int bsize, char buff[]);
+void handle_msg_manual_control(uavlink_message_t message);
 void handle_command(uavlink_message_t message);
 
 // Function handle command
