@@ -85,20 +85,28 @@ void handle_cmd_arm_disarm(bool flag)
 	}
 }
 
+void handle_cmd_takeoff(float altitude)
+{
+	ROS_INFO("TAKE OFF CMD :%f", altitude);
+}
+
 void handle_command(uavlink_message_t message)
 {
 	uavlink_command_t command_msg;
 	uavlink_command_decode(&message, &command_msg);
 	switch (command_msg.command)
 	{
-	case UAVLINK_COMMAND_SET_MODE:
+	case UAVLINK_CMD_SET_MODE:
 		handle_cmd_set_mode((int)command_msg.param1);
 		break;
 	
 	case UAVLINK_CMD_ARM_DISARM:
 		handle_cmd_arm_disarm((bool)command_msg.param1);
 		break;
-		
+	
+	case UAVLINK_CMD_TAKEOFF:
+		handle_cmd_takeoff(command_msg.param1);
+		break;
 	default:
 		break;
 	}

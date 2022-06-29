@@ -21,13 +21,17 @@ using std::string;
 
 #define CONTROL_ROBOT_MSG_ID 45
 #define MAVLINK_MSG_ID_MANUAL_CONTROL 69
-#define UAVLINK_COMMAND_SET_MODE 11
-#define UAVLINK_CMD_ARM_DISARM 400
+#define UAVLINK_CMD_SET_MODE 21
+#define UAVLINK_CMD_TAKEOFF 22
+#define UAVLINK_CMD_ARM_DISARM 23
+#define UAVLINK_CMD_LAND 24
+#define UAVLINK_CMD_FLYTO 25
+
 #define MAX_VOLTAGE 12.6
 #define MIN_VOLTAGE 10.8
 #define TIMEOUT(msg, timeout) (msg.header.stamp.isZero() || (ros::Time::now() - msg.header.stamp > timeout) )
 // 
-string mode_define[] = {"POSCTL", "OFFBOARD", "AUTO.LAND"};
+string mode_define[] = {"MANUAL", "POSCTL", "OFFBOARD", "AUTO.LAND"};
 
 void 			readingSocketThread();
 void 			writeSocketMessage(char*, int);
@@ -261,3 +265,4 @@ void 			handle_command(uavlink_message_t message);
 // Function handle command
 void 			handle_cmd_arm_disarm(bool flag);
 void 			handle_cmd_set_mode(int mode);
+void			handle_cmd_takeoff(float altitude);
