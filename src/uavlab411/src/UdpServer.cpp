@@ -105,7 +105,7 @@ void handle_command(uavlink_message_t message)
 		break;
 	
 	case UAVLINK_CMD_TAKEOFF:
-		handle_cmd_takeoff(command_msg.param1);
+		handle_cmd_takeoff((float)command_msg.param1);
 		break;
 	default:
 		break;
