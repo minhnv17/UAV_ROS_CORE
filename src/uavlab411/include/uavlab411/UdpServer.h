@@ -26,8 +26,8 @@ using std::string;
 #define UAVLINK_CMD_LAND 24
 #define UAVLINK_CMD_FLYTO 25
 
-#define MAX_VOLTAGE 12.6
-#define MIN_VOLTAGE 10.8
+#define MAX_VOLTAGE 16
+#define MIN_VOLTAGE 14
 #define TIMEOUT(msg, timeout) (msg.header.stamp.isZero() || (ros::Time::now() - msg.header.stamp > timeout))
 //
 string mode_define[] = {"MANUAL", "POSCTL", "OFFBOARD", "AUTO.LAND"};
@@ -111,10 +111,10 @@ typedef struct __uavlink_global_position_int_t
 {
 	int32_t lat; /*< [degE7] Latitude, expressed*/
 	int32_t lon; /*< [degE7] Longitude, expressed*/
-	float alt;	 /*< [m] Subcribe from /mavros/global_position/local -> z */
-	float vx;
-	float vy;
-	float vz;
+	int16_t alt;	 /*< [m] Subcribe from /mavros/global_position/local -> z */
+	int16_t vx;
+	int16_t vy;
+	int16_t vz;
 } uavlink_global_position_int_t;
 #define UAVLINK_MSG_ID_GLOBAL_POSITION_INT 2
 #define UAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN 24
@@ -142,12 +142,12 @@ static inline void uavlink_global_position_decode(const uavlink_message_t *msg, 
 
 typedef struct __uavlink_local_position_int_t
 {
-	float posX; /*< [degE7] Latitude, expressed*/
-	float posY; /*< [degE7] Longitude, expressed*/
-	float posZ; /*< [m] Subcribe from /rangefinder/range -> z */
-	float vx;
-	float vy;
-	float vz;
+	int16_t posX; /*< [degE7] Latitude, expressed*/
+	int16_t posY; /*< [degE7] Longitude, expressed*/
+	int16_t posZ; /*< [m] Subcribe from /rangefinder/range -> z */
+	int16_t vx;
+	int16_t vy;
+	int16_t vz;
 } uavlink_local_position_int_t;
 #define UAVLINK_MSG_ID_LOCAL_POSITION_INT 3
 #define UAVLINK_MSG_ID_LOCAL_POSITION_INT_LEN 24

@@ -147,12 +147,12 @@ void handleLocalPosition(const nav_msgs::Odometry& o)
 {
 	ros::Rate r(2);
 	uavlink_global_position_int_t global_pos;
-	global_pos.vx = (float)o.twist.twist.linear.x;
-	global_pos.vy = (float)o.twist.twist.linear.y;
-	global_pos.vz = (float)o.twist.twist.linear.z;
+	global_pos.vx = (int16_t)(o.twist.twist.linear.x*100);
+	global_pos.vy = (int16_t)(o.twist.twist.linear.y*100);
+	global_pos.vz = (int16_t)(o.twist.twist.linear.z*100);
 	
 	//get data from global_position
-	global_pos.alt = (float)o.pose.pose.position.z;
+	global_pos.alt = (int16_t)(o.pose.pose.position.z*100);
 	// global_pos.alt = 1;
 	global_pos.lat = (int32_t)(global_msg.latitude*10000000);
 	global_pos.lon = (int32_t)(global_msg.longitude*10000000);
@@ -173,10 +173,12 @@ void handleGlobalPosition(const sensor_msgs::NavSatFix& n)
 void handleUavPose(const geometry_msgs::PoseStampedConstPtr& _uavpose)
 {
 	uavlink_local_position_int_t uavpose;
-	uavpose.posX = _uavpose->pose.position.x;
-	uavpose.posY = _uavpose->pose.position.y;
-	uavpose.posZ = _uavpose->pose.position.z;
-
+	uavpose.posX = (int16_t)(_uavpose->pose.position.x*1000);
+	uavpose.posY = (int16_t)(_uavpose->pose.position.y*1000);
+	uavpose.posZ = (int16_t)(_uavpose->pose.position.z*1000);
+	uavpose.vx = 0;
+	uavpose.vy = 0;
+	uavpose.vz = 0;
 	uavlink_message_t msg;
 	uavlink_local_position_encode(&msg, &uavpose);
 	char buf[100];
