@@ -21,10 +21,14 @@ def R_matrix(z_angle,y_angle,x_angle):
 
 # Func dung de tao cac khoi hop chu nhat, tai day co 4 khoi hop [x, y, z, a, b, c]
 # x: vi tri theo truc x
-# c: chieu cao
+# y: vi tri theo truc y
+# z: vi tri theo truc z
+# a: Do dai theo truc x
+# b: Do dai doc theo truc y
+# c: chieu cao theo truc z
 def getblocks():
     # AABBs
-    block = [[4.25e+00, 0.00e+00, 0.00e+00, 3.85e+00, 1.20e+00, 1.95e+00]]
+    block = [[3.85e+00, 0.00e+00, 0.00e+00, 4.25e+00, 1.20e+00, 1.95e+00]]
     Obstacles = []
     for i in block:
         i = np.array(i)
@@ -78,7 +82,7 @@ class obb(object):
 
 class env():
     # Khoi tao kich thuoc cua block tai day
-    def __init__(self, xmin=0, ymin=0, zmin=0, xmax=4.25, ymax=9.15, zmax=4, resolution=1):
+    def __init__(self, xmin=0, ymin=0, zmin=0, xmax=4.25, ymax=9.15, zmax=4, resolution=0.1):
     # def __init__(self, xmin=-5, ymin=0, zmin=-5, xmax=10, ymax=5, zmax=10, resolution=1):  
         self.resolution = resolution
         self.boundary = np.array([xmin, ymin, zmin, xmax, ymax, zmax]) 
@@ -86,10 +90,14 @@ class env():
         self.AABB = getAABB2(self.blocks)
         self.AABB_pyrr = getAABB(self.blocks)
         self.balls = getballs()
-        self.OBB = np.array([obb([2,4.36,0.75],[0.8,1.96,0.75],R_matrix(0,0,0)),
-                             obb([2.1,8.65,1],[2.1,0.5,1],R_matrix(0,0,0)),
-                             obb([4.02,5.0,1.83],[0.23,0.5,1.83],R_matrix(0,0,0)),
-                             obb([4.02,6.5,1], [0.23,0.5,1], R_matrix(0,0,0))])
+        # Array 1: x: vi tri tam theo x, y: vi tri tam theo y, z: vi tri tam theo z
+        # Array 2: x: khoang cach den tam theo x, 
+        #          y: khoang cach den tam theo y, 
+        #          z: khoang cach den tam theo z
+        self.OBB = np.array([obb([2,4.36,0.37],[0.8,1.96,0.37],R_matrix(0,0,0)),
+                             obb([2.1,8.65,0.5],[2.1,0.5,0.5],R_matrix(0,0,0)),
+                             obb([4.02,5.0,0.9],[0.23,0.5,0.9],R_matrix(0,0,0)),
+                             obb([4.02,6.5,0.5], [0.23,0.5,0.5], R_matrix(0,0,0))])
         self.start = np.array([0.7, 0.0, 0.5])
         self.goal = np.array([4.0, 7.2, 3.0])
         self.t = 0 # time 
