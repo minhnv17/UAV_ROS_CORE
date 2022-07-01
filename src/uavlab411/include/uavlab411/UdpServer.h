@@ -16,15 +16,16 @@
 #include "mavros_msgs/SetMode.h"
 
 #include "uavlab411/control_robot_msg.h"
+#include "uavlab411/Takeoff.h"
 
 using std::string;
 
 #define CONTROL_ROBOT_MSG_ID 45
-#define UAVLINK_CMD_SET_MODE 21
 #define UAVLINK_CMD_TAKEOFF 22
 #define UAVLINK_CMD_ARM_DISARM 23
 #define UAVLINK_CMD_LAND 24
 #define UAVLINK_CMD_FLYTO 25
+#define UAVLINK_CMD_SET_MODE 26
 
 #define MAX_VOLTAGE 16
 #define MIN_VOLTAGE 14

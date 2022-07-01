@@ -11,6 +11,9 @@ ros::Timer state_timeout_timer; // Check timeout connecting
 ros::Duration arming_timeout;
 ros::Duration state_timeout;
 
+// ROS Service
+ros::ServiceClient takeoff_srv;
+
 // ROS Message
 uavlab411::control_robot_msg msg_robot;
 mavros_msgs::State state; // State robot
@@ -87,7 +90,17 @@ void handle_cmd_arm_disarm(bool flag)
 
 void handle_cmd_takeoff(float altitude)
 {
-	ROS_INFO("TAKE OFF CMD :%f", altitude);
+	uavlab411::Takeoff takeoff;
+	takeoff.request.z = altitude;
+
+	if(takeoff_srv.call(takeoff))
+	{
+		ROS_INFO("CALLED TAKEOFF SRV!");
+	}else{
+		ROS_ERROR("Failed to call service takeoff");
+	    return;
+	}
+	return;
 }
 
 void handle_command(uavlink_message_t message)
@@ -219,25 +232,25 @@ int createSocket(int port)
 
 void readingSocketThread()
 {
-	char buff[9999];
+	char buff[1024];
 
 	// Socket create
 	sockfd = createSocket(port);
-
+	memset(&android_addr, 0, sizeof(android_addr));
 	ROS_INFO("UDP UdpSocket initialized on port %d", port);
-	
-	// handle_msg_set_mode();
+
 	while (true) {
 		// read next UDP packet
-		int bsize = recvfrom(sockfd, &buff[0], sizeof(buff) - 1, 0, (sockaddr *) &android_addr, &android_addr_size);	
-		check_receiver = true;
+		int bsize = recvfrom(sockfd, (char *)buff, 1024, 0, (sockaddr *) &android_addr, &android_addr_size);	
+
+		buff[bsize] = '\0';
 		if (bsize < 0) {
 			ROS_ERROR("recvfrom() error: %s", strerror(errno));
 		}
 		else {
 			if(!check_receiver) check_receiver = true;
 			uavlink_message_t message;
-			memcpy(&message, buff, sizeof(uavlink_message_t));
+			memcpy(&message, buff, bsize);
 			switch (message.msgid)
 			{
 				case UAVLINK_MSG_ID_MANUAL_CONTROL:
@@ -288,6 +301,7 @@ int main(int argc, char **argv)
 	// Service client
 	set_mode = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");
 	arming = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
+	takeoff_srv = nh.serviceClient<uavlab411::Takeoff>("uavlab411/takeoff");
 
 	// Timer
 	state_timeout = ros::Duration(nh_priv.param("state_timeout", 3.0));
