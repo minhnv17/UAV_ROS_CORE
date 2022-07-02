@@ -103,6 +103,12 @@ void handle_cmd_takeoff(float altitude)
 	return;
 }
 
+void handle_cmd_flyto(bool allwp, int wpid)
+{
+	ROS_INFO("ISALL WP: %d", allwp);
+	ROS_INFO("WPID: %d", wpid);
+}
+
 void handle_command(uavlink_message_t message)
 {
 	uavlink_command_t command_msg;
@@ -119,6 +125,9 @@ void handle_command(uavlink_message_t message)
 	
 	case UAVLINK_CMD_TAKEOFF:
 		handle_cmd_takeoff((float)command_msg.param1);
+		break;
+	case UAVLINK_CMD_FLYTO:
+		handle_cmd_flyto((bool)command_msg.param1, (int)command_msg.param2);
 		break;
 	default:
 		break;

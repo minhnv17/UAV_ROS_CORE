@@ -30,7 +30,7 @@ using std::string;
 #define MAX_VOLTAGE 16
 #define MIN_VOLTAGE 14
 #define TIMEOUT(msg, timeout) (msg.header.stamp.isZero() || (ros::Time::now() - msg.header.stamp > timeout))
-//
+
 string mode_define[] = {"MANUAL", "POSCTL", "OFFBOARD", "AUTO.LAND"};
 
 void readingSocketThread();
@@ -299,3 +299,4 @@ void handle_command(uavlink_message_t message);
 void handle_cmd_arm_disarm(bool flag);
 void handle_cmd_set_mode(int mode);
 void handle_cmd_takeoff(float altitude);
+void handle_cmd_flyto(bool alwp, int wpid);
