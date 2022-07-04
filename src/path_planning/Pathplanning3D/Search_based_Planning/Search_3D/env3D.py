@@ -5,6 +5,8 @@
 @author: yue qi
 """
 import numpy as np
+import json
+
 # from utils3D import OBB2AABB
 
 def R_matrix(z_angle,y_angle,x_angle):
@@ -19,6 +21,19 @@ def R_matrix(z_angle,y_angle,x_angle):
            np.array([[np.cos(y_angle), 0.0, np.sin(y_angle)], [0.0, 1.0, 0.0], [-np.sin(y_angle), 0.0, np.cos(y_angle)]])@ \
            np.array([[1.0, 0.0, 0.0], [0.0, np.cos(x_angle), -np.sin(x_angle)], [0.0, np.sin(x_angle), np.cos(x_angle)]])
 
+def get_object():
+    array = []
+    f = open('p412data.json')
+
+    data = json.load(f)
+
+    for i in data['objects']:
+        if(i['type'] == 'box'):
+            location = i['location']
+            dimension = i['dimension']
+            array.append(obb([-location[0], -location[1], location[2]], 
+            [dimension[0] / 2, dimension[1] / 2, dimension[2] / 2], R_matrix(0,0,0)))
+    return array
 # Func dung de tao cac khoi hop chu nhat, tai day co 4 khoi hop [x, y, z, a, b, c]
 # x: vi tri theo truc x
 # y: vi tri theo truc y
@@ -28,7 +43,7 @@ def R_matrix(z_angle,y_angle,x_angle):
 # c: chieu cao theo truc z
 def getblocks():
     # AABBs
-    block = [[3.85e+00, 0.00e+00, 0.00e+00, 4.25e+00, 1.20e+00, 1.95e+00]]
+    block = [[0.00e+00, 0.00e+00, 0.00e+00, 0.00e+00, 0.00e+00, 0.00e+00]]
     Obstacles = []
     for i in block:
         i = np.array(i)
@@ -38,6 +53,15 @@ def getblocks():
 #Func dung de tao lap khoi cau [x, y, z, r]
 def getballs():
     spheres = [[3.0,2.0,3,0.3]]
+    array = []
+    f = open('p412data.json')
+
+    data = json.load(f)
+    for i in data['objects']:
+        if(i['type'] == 'ball'):
+            location = i['location']
+            dimension = i['dimension']
+            spheres.append([-location[0], -location[1], location[2], dimension[0] / 2])
     Obstacles = []
     for i in spheres:
         Obstacles.append([j for j in i])
@@ -82,7 +106,7 @@ class obb(object):
 
 class env():
     # Khoi tao kich thuoc cua block tai day
-    def __init__(self, xmin=0, ymin=0, zmin=0, xmax=4.25, ymax=9.15, zmax=4, resolution=0.1):
+    def __init__(self, xmin=0, ymin=0, zmin=0, xmax=9.15, ymax=4.25, zmax=4, resolution=0.1):
     # def __init__(self, xmin=-5, ymin=0, zmin=-5, xmax=10, ymax=5, zmax=10, resolution=1):  
         self.resolution = resolution
         self.boundary = np.array([xmin, ymin, zmin, xmax, ymax, zmax]) 
@@ -94,12 +118,13 @@ class env():
         # Array 2: x: khoang cach den tam theo x, 
         #          y: khoang cach den tam theo y, 
         #          z: khoang cach den tam theo z
-        self.OBB = np.array([obb([2,4.36,0.37],[0.8,1.96,0.37],R_matrix(0,0,0)),
-                             obb([2.1,8.65,0.5],[2.1,0.5,0.5],R_matrix(0,0,0)),
-                             obb([4.02,5.0,0.9],[0.23,0.5,0.9],R_matrix(0,0,0)),
-                             obb([4.02,6.5,0.5], [0.23,0.5,0.5], R_matrix(0,0,0))])
-        self.start = np.array([0.7, 0.0, 0.5])
-        self.goal = np.array([4.0, 7.2, 3.0])
+        # self.OBB = np.array([obb([2,4.36,0.37],[0.8,1.96,0.37],R_matrix(0,0,0)),
+        #                      obb([2.1,8.65,0.5],[2.1,0.5,0.5],R_matrix(0,0,0)),
+        #                      obb([4.02,5.0,0.9],[0.23,0.5,0.9],R_matrix(0,0,0)),
+        #                      obb([4.02,6.5,0.5], [0.23,0.5,0.5], R_matrix(0,0,0))])
+        self.OBB = np.array(get_object())
+        self.start = np.array([1, 3, 0.5])
+        self.goal = np.array([7, 0.4, 3.0])
         self.t = 0 # time 
 
     def New_block(self):
