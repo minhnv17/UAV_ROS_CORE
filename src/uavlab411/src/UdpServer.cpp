@@ -16,7 +16,7 @@ ros::Duration arming_timeout;
 ros::Duration state_timeout;
 
 // ROS Service
-ros::ServiceClient takeoff_srv, nav_to_waypoint_srv;
+ros::ServiceClient takeoff_srv, nav_to_waypoint_srv, land_srv;
 
 // ROS Message
 uavlab411::control_robot_msg msg_robot;
@@ -115,11 +115,27 @@ void handle_cmd_takeoff(float altitude)
 	return;
 }
 
+void handle_cmd_land()
+{
+	std_srvs::Trigger land;
+	if (land_srv.call(land))
+	{
+		ROS_INFO("CALLED LAND SRV!");
+	}
+	else
+	{
+		ROS_ERROR("Failed to call service land");
+		return;
+	}
+	return;
+}
+
 void handle_cmd_flyto(bool allwp, int wpid)
 {
-	for (short i=0; i< waypoint_vector.size();i++){
-        ROS_INFO("point id: %d ",waypoint_vector[i].wpId);
-    }
+	for (short i = 0; i < waypoint_vector.size(); i++)
+	{
+		ROS_INFO("point id: %d ", waypoint_vector[i].wpId);
+	}
 	if (!check_busy)
 	{
 		ROS_INFO("Start fly to waypoints");
@@ -128,14 +144,13 @@ void handle_cmd_flyto(bool allwp, int wpid)
 	}
 	else
 		ROS_INFO("Error: uav is flying to waypoint!");
-	
 }
 
 void handle_command(uavlink_message_t message)
 {
 	uavlink_command_t command_msg;
 	uavlink_command_decode(&message, &command_msg);
-	ROS_INFO("cmd: %d",command_msg.command);
+	ROS_INFO("cmd: %d", command_msg.command);
 	switch (command_msg.command)
 	{
 	case UAVLINK_CMD_SET_MODE:
@@ -151,6 +166,9 @@ void handle_command(uavlink_message_t message)
 		break;
 	case UAVLINK_CMD_FLYTO:
 		handle_cmd_flyto((bool)command_msg.param1, (int)command_msg.param2);
+		break;
+	case UAVLINK_CMD_LAND:
+		handle_cmd_land();
 		break;
 	default:
 		break;
@@ -274,14 +292,20 @@ bool navigate_to(uavlink_msg_waypoint_t point, float tolerance)
 	while (true)
 	{
 		if (TIMEOUT(uavpose_msg, _uavpose_timemout))
-			{ROS_INFO("nav to waypoint err: time out uavpose");
-		return false;}
+		{
+			ROS_INFO("nav to waypoint err: time out uavpose");
+			return false;
+		}
 		if (point.targetX - uavpose_msg.pose.position.x < tolerance && point.targetY - uavpose_msg.pose.position.y < tolerance && point.targetZ - uavpose_msg.pose.position.z < tolerance)
-			{ROS_INFO("nav to waypoint x:%f,y:%f,z:%f success", point.targetX, point.targetY, point.targetZ);
-		return true;}
+		{
+			ROS_INFO("nav to waypoint x:%f,y:%f,z:%f success", point.targetX, point.targetY, point.targetZ);
+			return true;
+		}
 		if (ros::Time::now() - start > ros::Duration(10))
-			{ROS_INFO("nav to waypoint err: over 10s");
-		return false;}
+		{
+			ROS_INFO("nav to waypoint err: over 10s");
+			return false;
+		}
 		ros::Duration(0.2).sleep();
 	}
 }
@@ -291,12 +315,12 @@ void navigate_points_vector()
 	check_busy = true;
 	while (!waypoint_vector.empty())
 	{
-		ROS_INFO("fly to point x: %f y:%f z:%f",waypoint_vector[0].targetX,waypoint_vector[0].targetY,waypoint_vector[0].targetZ);
-		if (navigate_to(waypoint_vector[0],0.1));
+		ROS_INFO("fly to point x: %f y:%f z:%f", waypoint_vector[0].targetX, waypoint_vector[0].targetY, waypoint_vector[0].targetZ);
+		if (navigate_to(waypoint_vector[0], 0.1))
+			;
 		{
-		waypoint_vector.erase(waypoint_vector.begin());
+			waypoint_vector.erase(waypoint_vector.begin());
 		}
-			
 	}
 	check_busy = false;
 }
@@ -400,6 +424,7 @@ int main(int argc, char **argv)
 	arming = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
 	takeoff_srv = nh.serviceClient<uavlab411::Takeoff>("uavlab411/takeoff");
 	nav_to_waypoint_srv = nh.serviceClient<uavlab411::Navigate>("uavlab411/navigate");
+	land_srv = nh.serviceClient<std_srvs::Trigger>("uavlab411/land");
 
 	// Timer
 	state_timeout = ros::Duration(nh_priv.param("state_timeout", 3.0));
