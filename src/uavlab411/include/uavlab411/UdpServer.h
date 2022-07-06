@@ -14,10 +14,12 @@
 #include "mavros_msgs/ManualControl.h"
 #include "mavros_msgs/CommandBool.h"
 #include "mavros_msgs/SetMode.h"
-
+#include <vector>
 #include "uavlab411/control_robot_msg.h"
 #include "uavlab411/Takeoff.h"
+#include "uavlab411/Navigate.h"
 
+#pragma pack(1)
 using std::string;
 
 #define CONTROL_ROBOT_MSG_ID 45
@@ -112,7 +114,7 @@ typedef struct __uavlink_global_position_int_t
 {
 	int32_t lat; /*< [degE7] Latitude, expressed*/
 	int32_t lon; /*< [degE7] Longitude, expressed*/
-	int16_t alt;	 /*< [m] Subcribe from /mavros/global_position/local -> z */
+	int16_t alt; /*< [m] Subcribe from /mavros/global_position/local -> z */
 	int16_t vx;
 	int16_t vy;
 	int16_t vz;
@@ -187,22 +189,18 @@ typedef struct __uavlink_msg_manual_control_t
 static inline void uavlink_manual_control_decode(const uavlink_message_t *msg, uavlink_msg_manual_control *uavlink_manual_control)
 {
 	memset(uavlink_manual_control, 0, UAVLINK_MSG_ID_MANUAL_CONTROL_LEN);
-	int index = 0;
-	memcpy(&uavlink_manual_control->x, _MAV_PAYLOAD(msg) + index, 4);
-	memcpy(&uavlink_manual_control->y, _MAV_PAYLOAD(msg) + (index += 4), 4);
-	memcpy(&uavlink_manual_control->z, _MAV_PAYLOAD(msg) + (index += 4), 4);
-	memcpy(&uavlink_manual_control->r, _MAV_PAYLOAD(msg) + (index += 4), 4);
+	memcpy(&uavlink_manual_control, _MAV_PAYLOAD(msg), UAVLINK_MSG_ID_MANUAL_CONTROL_LEN);
 }
 
 typedef struct __uavlink_msg_waypoint_t
 {
-	uint16_t wpId; /*< [degE7] Latitude, expressed*/
-	float targetX; /*< [degE7] Longitude, expressed*/
-	float targetY; /*< [m] Subcribe from /rangefinder/range -> z */
+	uint32_t wpId;
+	float targetX;
+	float targetY;
 	float targetZ;
 } uavlink_msg_waypoint_t;
 #define UAVLINK_MSG_ID_WAYPOINT 4
-#define UAVLINK_MSG_ID_WAYPOINT_LEN 14
+#define UAVLINK_MSG_ID_WAYPOINT_LEN 16
 
 static inline uint16_t uavlink_waypoint_encode(uavlink_message_t *msg, const uavlink_msg_waypoint_t *uavlink_msg_waypoint)
 {
@@ -219,6 +217,7 @@ static inline uint16_t uavlink_waypoint_encode(uavlink_message_t *msg, const uav
 
 static inline void uavlink_waypoint_decode(const uavlink_message_t *msg, uavlink_msg_waypoint_t *uavlink_msg_waypoint)
 {
+	int index = 0;
 	memset(uavlink_msg_waypoint, 0, UAVLINK_MSG_ID_WAYPOINT_LEN);
 	memcpy(uavlink_msg_waypoint, _MAV_PAYLOAD(msg), UAVLINK_MSG_ID_WAYPOINT_LEN);
 }
@@ -251,7 +250,8 @@ static inline void uavlink_command_decode(const uavlink_message_t *msg, uavlink_
 {
 	int index = 0;
 	memset(uavlink_command, 0, UAVLINK_MSG_ID_COMMAND_LEN);
-	memcpy(&uavlink_command->command, _MAV_PAYLOAD(msg) + index, 2);
+	// memcpy(&uavlink_command, _MAV_PAYLOAD(msg),UAVLINK_MSG_ID_COMMAND_LEN);
+	memcpy(&uavlink_command->command, _MAV_PAYLOAD(msg), 2);
 	memcpy(&uavlink_command->param1, _MAV_PAYLOAD(msg) + (index += 2), 4);
 	memcpy(&uavlink_command->param2, _MAV_PAYLOAD(msg) + (index += 4), 4);
 	memcpy(&uavlink_command->param3, _MAV_PAYLOAD(msg) + (index += 4), 4);
@@ -294,9 +294,13 @@ uint16_t uavlink_msg_to_send_buffer(uint8_t *buf, const uavlink_message_t *msg)
 // Function handle receiver msg
 void handle_msg_manual_control(uavlink_message_t message);
 void handle_command(uavlink_message_t message);
+void handle_msg_waypoint(uavlink_message_t message);
 
 // Function handle command
 void handle_cmd_arm_disarm(bool flag);
 void handle_cmd_set_mode(int mode);
 void handle_cmd_takeoff(float altitude);
 void handle_cmd_flyto(bool alwp, int wpid);
+// Function navigate_to_waypoint
+bool navigate_to(uavlink_msg_waypoint_t point, float tolerance);
+void navigate_points_vector();
