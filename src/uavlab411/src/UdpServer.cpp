@@ -41,18 +41,25 @@ bool check_receiver = false;
 
 void handle_cmd_set_mode(int mode)
 {
-	if (state.mode != mode_define[mode])
+	if (mode > end(mode_define) - begin(mode_define) - 1)
 	{
-		static mavros_msgs::SetMode sm;
-		sm.request.custom_mode = mode_define[mode];
-
-		if (!set_mode.call(sm))
-			ROS_INFO("Error calling set_mode service");
-		throw std::runtime_error("Error calling set_mode service");
+		ROS_ERROR("Error calling set_mode, mode index invalid: %d", mode);
 	}
 	else
 	{
-		ROS_INFO("Robot already in this mode");
+		if (state.mode != mode_define[mode])
+		{
+			static mavros_msgs::SetMode sm;
+			sm.request.custom_mode = mode_define[mode];
+
+			if (!set_mode.call(sm))
+				ROS_INFO("Error calling set_mode service");
+			throw std::runtime_error("Error calling set_mode service");
+		}
+		else
+		{
+			ROS_INFO("Robot already in this mode");
+		}
 	}
 }
 
@@ -117,9 +124,10 @@ void handle_cmd_takeoff(float altitude)
 
 void handle_cmd_flyto(bool allwp, int wpid)
 {
-	for (short i=0; i< waypoint_vector.size();i++){
-        ROS_INFO("point id: %d ",waypoint_vector[i].wpId);
-    }
+	for (short i = 0; i < waypoint_vector.size(); i++)
+	{
+		ROS_INFO("point id: %d ", waypoint_vector[i].wpId);
+	}
 	if (!check_busy)
 	{
 		ROS_INFO("Start fly to waypoints");
@@ -128,14 +136,13 @@ void handle_cmd_flyto(bool allwp, int wpid)
 	}
 	else
 		ROS_INFO("Error: uav is flying to waypoint!");
-	
 }
 
 void handle_command(uavlink_message_t message)
 {
 	uavlink_command_t command_msg;
 	uavlink_command_decode(&message, &command_msg);
-	ROS_INFO("cmd: %d",command_msg.command);
+	ROS_INFO("cmd: %d", command_msg.command);
 	switch (command_msg.command)
 	{
 	case UAVLINK_CMD_SET_MODE:
@@ -274,14 +281,20 @@ bool navigate_to(uavlink_msg_waypoint_t point, float tolerance)
 	while (true)
 	{
 		if (TIMEOUT(uavpose_msg, _uavpose_timemout))
-			{ROS_INFO("nav to waypoint err: time out uavpose");
-		return false;}
+		{
+			ROS_INFO("nav to waypoint err: time out uavpose");
+			return false;
+		}
 		if (point.targetX - uavpose_msg.pose.position.x < tolerance && point.targetY - uavpose_msg.pose.position.y < tolerance && point.targetZ - uavpose_msg.pose.position.z < tolerance)
-			{ROS_INFO("nav to waypoint x:%f,y:%f,z:%f success", point.targetX, point.targetY, point.targetZ);
-		return true;}
+		{
+			ROS_INFO("nav to waypoint x:%f,y:%f,z:%f success", point.targetX, point.targetY, point.targetZ);
+			return true;
+		}
 		if (ros::Time::now() - start > ros::Duration(10))
-			{ROS_INFO("nav to waypoint err: over 10s");
-		return false;}
+		{
+			ROS_INFO("nav to waypoint err: over 10s");
+			return false;
+		}
 		ros::Duration(0.2).sleep();
 	}
 }
@@ -291,12 +304,12 @@ void navigate_points_vector()
 	check_busy = true;
 	while (!waypoint_vector.empty())
 	{
-		ROS_INFO("fly to point x: %f y:%f z:%f",waypoint_vector[0].targetX,waypoint_vector[0].targetY,waypoint_vector[0].targetZ);
-		if (navigate_to(waypoint_vector[0],0.1));
+		ROS_INFO("fly to point x: %f y:%f z:%f", waypoint_vector[0].targetX, waypoint_vector[0].targetY, waypoint_vector[0].targetZ);
+		if (navigate_to(waypoint_vector[0], 0.1))
+			;
 		{
-		waypoint_vector.erase(waypoint_vector.begin());
+			waypoint_vector.erase(waypoint_vector.begin());
 		}
-			
 	}
 	check_busy = false;
 }
