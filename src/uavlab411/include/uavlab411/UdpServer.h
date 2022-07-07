@@ -271,7 +271,7 @@ uint8_t _mav_trim_payload(const char *payload, uint8_t length)
 
 int8_t mode_to_int(string mode)
 {
-	for (int8_t i = 0; i < (end(mode_define)-begin(mode_define)); i++)
+	for (int8_t i = 0; i < (end(mode_define) - begin(mode_define)); i++)
 	{
 		if (mode == mode_define[i])
 			return i;
