@@ -41,18 +41,25 @@ bool check_receiver = false;
 
 void handle_cmd_set_mode(int mode)
 {
-	if (state.mode != mode_define[mode])
+	if (mode > end(mode_define) - begin(mode_define) - 1)
 	{
-		static mavros_msgs::SetMode sm;
-		sm.request.custom_mode = mode_define[mode];
-
-		if (!set_mode.call(sm))
-			ROS_INFO("Error calling set_mode service");
-		throw std::runtime_error("Error calling set_mode service");
+		ROS_ERROR("Error calling set_mode, mode index invalid: %d", mode);
 	}
 	else
 	{
-		ROS_INFO("Robot already in this mode");
+		if (state.mode != mode_define[mode])
+		{
+			static mavros_msgs::SetMode sm;
+			sm.request.custom_mode = mode_define[mode];
+
+			if (!set_mode.call(sm))
+				ROS_INFO("Error calling set_mode service");
+			throw std::runtime_error("Error calling set_mode service");
+		}
+		else
+		{
+			ROS_INFO("Robot already in this mode");
+		}
 	}
 }
 
