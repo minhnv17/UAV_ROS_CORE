@@ -190,7 +190,7 @@ typedef struct __uavlink_msg_manual_control_t
 static inline void uavlink_manual_control_decode(const uavlink_message_t *msg, uavlink_msg_manual_control *uavlink_manual_control)
 {
 	memset(uavlink_manual_control, 0, UAVLINK_MSG_ID_MANUAL_CONTROL_LEN);
-	memcpy(&uavlink_manual_control, _MAV_PAYLOAD(msg), UAVLINK_MSG_ID_MANUAL_CONTROL_LEN);
+	memcpy(uavlink_manual_control, _MAV_PAYLOAD(msg), UAVLINK_MSG_ID_MANUAL_CONTROL_LEN);
 }
 
 typedef struct __uavlink_msg_waypoint_t
