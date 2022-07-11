@@ -196,13 +196,14 @@ static inline void uavlink_manual_control_decode(const uavlink_message_t *msg, u
 
 typedef struct __uavlink_msg_waypoint_t
 {
+	uint16_t type;
 	uint32_t wpId;
 	float targetX;
 	float targetY;
 	float targetZ;
 } uavlink_msg_waypoint_t;
 #define UAVLINK_MSG_ID_WAYPOINT 4
-#define UAVLINK_MSG_ID_WAYPOINT_LEN 16
+#define UAVLINK_MSG_ID_WAYPOINT_LEN 18
 
 static inline uint16_t uavlink_waypoint_encode(uavlink_message_t *msg, const uavlink_msg_waypoint_t *uavlink_msg_waypoint)
 {
@@ -305,5 +306,5 @@ void handle_cmd_takeoff(float altitude);
 void handle_cmd_flyto(bool alwp, int wpid);
 // Function navigate_to_waypoint
 bool navigate_to(uavlink_msg_waypoint_t point, float tolerance);
-void navigate_points_vector();
+void navigate_points_vector(void *type);
 void handle_cmd_land();
