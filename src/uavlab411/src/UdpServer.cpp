@@ -16,7 +16,7 @@ ros::Duration arming_timeout;
 ros::Duration state_timeout;
 
 // ROS Service
-ros::ServiceClient takeoff_srv, nav_to_waypoint_srv;
+ros::ServiceClient takeoff_srv, nav_to_waypoint_srv, land_srv;
 
 // ROS Message
 uavlab411::control_robot_msg msg_robot;
@@ -122,6 +122,21 @@ void handle_cmd_takeoff(float altitude)
 	return;
 }
 
+void handle_cmd_land()
+{
+	std_srvs::Trigger land;
+	if (land_srv.call(land))
+	{
+		ROS_INFO("CALLED LAND SRV!");
+	}
+	else
+	{
+		ROS_ERROR("Failed to call service land");
+		return;
+	}
+	return;
+}
+
 void handle_cmd_flyto(bool allwp, int wpid)
 {
 	for (short i = 0; i < waypoint_vector.size(); i++)
@@ -158,6 +173,9 @@ void handle_command(uavlink_message_t message)
 		break;
 	case UAVLINK_CMD_FLYTO:
 		handle_cmd_flyto((bool)command_msg.param1, (int)command_msg.param2);
+		break;
+	case UAVLINK_CMD_LAND:
+		handle_cmd_land();
 		break;
 	default:
 		break;
@@ -413,6 +431,7 @@ int main(int argc, char **argv)
 	arming = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
 	takeoff_srv = nh.serviceClient<uavlab411::Takeoff>("uavlab411/takeoff");
 	nav_to_waypoint_srv = nh.serviceClient<uavlab411::Navigate>("uavlab411/navigate");
+	land_srv = nh.serviceClient<std_srvs::Trigger>("uavlab411/land");
 
 	// Timer
 	state_timeout = ros::Duration(nh_priv.param("state_timeout", 3.0));

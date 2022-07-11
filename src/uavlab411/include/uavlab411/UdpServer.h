@@ -19,6 +19,7 @@
 #include "uavlab411/control_robot_msg.h"
 #include "uavlab411/Takeoff.h"
 #include "uavlab411/Navigate.h"
+#include <std_srvs/Trigger.h>
 
 #pragma pack(1)
 using std::string;
@@ -305,3 +306,4 @@ void handle_cmd_flyto(bool alwp, int wpid);
 // Function navigate_to_waypoint
 bool navigate_to(uavlink_msg_waypoint_t point, float tolerance);
 void navigate_points_vector();
+void handle_cmd_land();

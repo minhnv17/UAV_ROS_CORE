@@ -217,7 +217,6 @@ void OffBoard::navToWayPointV2(float x, float y, float z, int rate)
                              x, y, 1.0 / rate);
     _targetV = _targetV / 2.0;
 
-    ROS_INFO("TARGET V: %f", _targetV);
     e_x = x - _uavpose.pose.position.x;
     e_y = y - _uavpose.pose.position.y;
 
