@@ -286,15 +286,8 @@ bool navigate_to(uavlink_msg_waypoint_t point, float tolerance)
 	navigate.request.speed = 0;
 	navigate.request.nav_mode = 3;
 
-	if (nav_to_waypoint_srv.call(navigate))
-	{
-		ROS_INFO("CALLED NAV SRV!");
-	}
-	else
-	{
-		ROS_ERROR("Failed to call service nav");
-		return false;
-	}
+	if (nav_to_waypoint_srv.call(navigate)) ROS_INFO("CALLED NAV SRV!");
+	else { ROS_ERROR("Failed to call service nav"); return false;}
 	ros::Time start = ros::Time::now();
 	while (true)
 	{
@@ -310,8 +303,8 @@ bool navigate_to(uavlink_msg_waypoint_t point, float tolerance)
 		}
 		if (ros::Time::now() - start > ros::Duration(10))
 		{
-			ROS_INFO("nav to waypoint err: over 10s");
-			return false;
+			ROS_INFO("nav to waypoint err: over 10s -> fly to next waypoint");
+			return true;
 		}
 		ros::Duration(0.2).sleep();
 	}
@@ -324,7 +317,6 @@ void navigate_points_vector()
 	{
 		ROS_INFO("fly to point x: %f y:%f z:%f", waypoint_vector[0].targetX, waypoint_vector[0].targetY, waypoint_vector[0].targetZ);
 		if (navigate_to(waypoint_vector[0], 0.1))
-			;
 		{
 			waypoint_vector.erase(waypoint_vector.begin());
 		}

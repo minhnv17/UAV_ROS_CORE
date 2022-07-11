@@ -106,7 +106,7 @@ class obb(object):
 
 class env():
     # Khoi tao kich thuoc cua block tai day
-    def __init__(self, xmin=0, ymin=0, zmin=0, xmax=9.15, ymax=4.25, zmax=4, resolution=0.1):
+    def __init__(self, xmin=0, ymin=0, zmin=0, xmax=9.15, ymax=4.25, zmax=4, resolution=0.05):
     # def __init__(self, xmin=-5, ymin=0, zmin=-5, xmax=10, ymax=5, zmax=10, resolution=1):  
         self.resolution = resolution
         self.boundary = np.array([xmin, ymin, zmin, xmax, ymax, zmax]) 
@@ -123,8 +123,8 @@ class env():
         #                      obb([4.02,5.0,0.9],[0.23,0.5,0.9],R_matrix(0,0,0)),
         #                      obb([4.02,6.5,0.5], [0.23,0.5,0.5], R_matrix(0,0,0))])
         self.OBB = np.array(get_object())
-        self.start = np.array([1, 3, 0.5])
-        self.goal = np.array([7, 0.4, 3.0])
+        self.start = np.array([1, 1, 0])
+        self.goal = np.array([6, 3.5, 0.5])
         self.t = 0 # time 
 
     def New_block(self):

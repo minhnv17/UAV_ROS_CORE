@@ -83,6 +83,7 @@ class Weighted_A_star(object):
             self.Path = self.path()
             if N is None:
                 visualization(self)
+                print(self.Path)
                 plt.show()
             return True
 
