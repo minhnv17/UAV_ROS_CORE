@@ -1,13 +1,14 @@
 #include "uavlab411/Localization.h"
 
+ros::Duration _aruco_timemout = ros::Duration(0.2);
 //define global variable
 double z_barometer;
-geometry_msgs::PoseStamped uav_pose, pose_path;
+geometry_msgs::PoseStamped uav_pose, pose_path,uavpose_of_local_msg;
 nav_msgs::Path path_uav;
 sensor_msgs::Range _rangefinder;
 uint64_t pose_seq = 0;
 // define subscriber and publisher
-ros::Publisher uavpose_pub, path_pub;
+ros::Publisher uavpose_pub, path_pub, uavpose_of_local_pub;
 
 ros::Subscriber main_optical_flow_pose_sub, range_finder_sub;
 ros::Subscriber local_position_sub;
@@ -66,14 +67,48 @@ void handle_main_optical_flow_pose(const geometry_msgs::PoseWithCovarianceStampe
     uavpose_pub.publish(uav_pose);
     pose_seq++;
 
+    //Path to visualize on rviz
     path_uav.header = msg.header;
     path_uav.poses.push_back(pose_path);
     path_pub.publish(path_uav);
 }
 
+
 void handle_local_position(const geometry_msgs::PoseStamped& msg)
 {
     z_barometer = msg.pose.position.z;
+    tf::Quaternion q(
+        msg.pose.orientation.x,
+        msg.pose.orientation.y,
+        msg.pose.orientation.z,
+        msg.pose.orientation.w);
+    tf::Matrix3x3 m(q);
+    double roll, pitch, yaw_local;
+    m.getRPY(roll, pitch, yaw_local);
+    uavpose_of_local_msg = msg;
+    uavpose_of_local_msg.pose.orientation.w =0;
+    uavpose_of_local_msg.pose.orientation.x =0;
+    uavpose_of_local_msg.pose.orientation.y =0;
+    uavpose_of_local_msg.pose.orientation.z =yaw_local;
+    
+    if (TIMEOUT(uav_pose,_aruco_timemout))
+    {
+        uavpose_of_local_msg.pose.position.x += x_negative;
+        uavpose_of_local_msg.pose.position.y += y_negative;
+        uavpose_of_local_msg.pose.orientation.z += yaw_negative;
+        uavpose_of_local_pub.publish(uavpose_of_local_msg);
+    }
+    else
+    {
+        x_negative = uav_pose.pose.position.x - msg.pose.position.x;
+        y_negative = uav_pose.pose.position.y - msg.pose.position.y;
+        yaw_negative = uav_pose.pose.orientation.z - yaw_local;
+    }
+    
+
+
+    
+   
 }
 
 void handle_rangefinder(const sensor_msgs::RangeConstPtr &range)
@@ -91,6 +126,7 @@ int main(int argc, char **argv)
     // Publish
     uavpose_pub = nh.advertise<geometry_msgs::PoseStamped>("uavlab411/uavpose", 1);
     path_pub = nh.advertise<nav_msgs::Path>("/pathuav", 10);
+    uavpose_of_local_pub = nh.advertise<geometry_msgs::PoseStamped>("uavlab411/uavpose", 1);
     ros::spin();
     return 0;
 }

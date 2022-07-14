@@ -27,6 +27,7 @@ enum Mode
     Hold = 2,
     NavYaw = 1,
     NavNoYaw = 3
+    
 };
 
 float ScalePid(float data, float maxData, float minData, float heso)
