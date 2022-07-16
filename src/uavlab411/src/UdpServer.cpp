@@ -21,7 +21,7 @@ ros::Duration state_timeout;
 ros::ServiceClient takeoff_srv, nav_to_waypoint_srv, land_srv;
 
 // ROS Message
-uavlab411::control_robot_msg msg_robot;
+uavlab411::control_robot_msg msg_robot;        // msg control robot
 mavros_msgs::State state;					   // State robot
 mavros_msgs::ManualControl manual_control_msg; // Manual control msg
 sensor_msgs::NavSatFix global_msg;			   // message from topic "/mavros/global_position/global"
@@ -67,13 +67,7 @@ void handle_cmd_set_mode(int mode)
 	}
 }
 
-void handle_msg_control_robot(char buff[])
-{
-	msg_robot.step1 = ReadINT16(buff, 2);
-	msg_robot.step2 = ReadINT16(buff, 4);
-	msg_robot.tongs = ReadINT16(buff, 6);
-	control_robot_pub.publish(msg_robot);
-}
+
 
 void handle_cmd_arm_disarm(bool flag)
 {
@@ -193,7 +187,17 @@ void handle_command(uavlink_message_t message)
 		break;
 	}
 }
-
+void handle_msg_control_robot(uavlink_message_t message)
+{
+	uavlink_control_robot_t robot_msg_rev;
+	uavlink_control_robot_decode(&message,&robot_msg_rev);
+	msg_robot.step1 = robot_msg_rev.step1;
+	msg_robot.step2 = robot_msg_rev.step2;
+	msg_robot.step3 = robot_msg_rev.step3;
+	msg_robot.step4 = robot_msg_rev.step4;
+	msg_robot.step5 = robot_msg_rev.step5;
+	control_robot_pub.publish(msg_robot);
+}
 void handle_msg_manual_control(uavlink_message_t message)
 {
 	uavlink_msg_manual_control manual_msg;
@@ -399,6 +403,7 @@ void readingSocketThread()
 				check_receiver = true;
 			uavlink_message_t message;
 			memcpy(&message, buff, bsize);
+			ROS_INFO("msg id : %d",message.msgid);
 			switch (message.msgid)
 			{
 			case UAVLINK_MSG_ID_MANUAL_CONTROL:
@@ -409,8 +414,8 @@ void readingSocketThread()
 				handle_command(message);
 				break;
 
-			case CONTROL_ROBOT_MSG_ID:
-				handle_msg_control_robot(buff);
+			case UAVLINK_CONTROL_ROBOT_MSG_ID:
+				handle_msg_control_robot(message);
 				break;
 			case UAVLINK_MSG_ID_WAYPOINT:
 				handle_msg_waypoint(message);
@@ -440,7 +445,7 @@ int main(int argc, char **argv)
 
 	// Initial publisher
 	manual_control_pub = nh.advertise<mavros_msgs::ManualControl>("mavros/manual_control/send", 1);
-	control_robot_pub = nh.advertise<uavlab411::control_robot_msg>("control_robot", 1);
+	control_robot_pub = nh.advertise<uavlab411::control_robot_msg>("uavlab411/control_robot", 1);
 
 	// Initial subscribe
 	auto state_sub = nh.subscribe("mavros/state", 1, &handleState);

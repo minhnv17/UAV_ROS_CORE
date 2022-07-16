@@ -24,7 +24,7 @@
 #pragma pack(1)
 using std::string;
 
-#define CONTROL_ROBOT_MSG_ID 45
+
 #define UAVLINK_CMD_TAKEOFF 22
 #define UAVLINK_CMD_ARM_DISARM 23
 #define UAVLINK_CMD_LAND 24
@@ -79,6 +79,7 @@ typedef struct __uavlink_message_t
 } uavlink_message_t;
 #define _MAV_PAYLOAD(msg) ((const char *)(&((msg)->payload64[0])))
 #define _MAV_PAYLOAD_NON_CONST(msg) ((char *)(&((msg)->payload64[0])))
+
 
 typedef struct __uavlink_state_t
 {
@@ -192,6 +193,26 @@ static inline void uavlink_manual_control_decode(const uavlink_message_t *msg, u
 {
 	memset(uavlink_manual_control, 0, UAVLINK_MSG_ID_MANUAL_CONTROL_LEN);
 	memcpy(uavlink_manual_control, _MAV_PAYLOAD(msg), UAVLINK_MSG_ID_MANUAL_CONTROL_LEN);
+}
+
+typedef struct __uavlink_control_robot_t
+{
+	int32_t step1;
+	int32_t step2;
+	int32_t step3;
+	int32_t step4;
+	int32_t step5;
+
+} uavlink_control_robot_t;
+#define UAVLINK_CONTROL_ROBOT_MSG_ID 7
+#define UAVLINK_CONTROL_ROBOT_MSG_LEN 20
+
+static inline void uavlink_control_robot_decode(const uavlink_message_t *msg, uavlink_control_robot_t *state)
+{
+
+	uint8_t len = msg->len < UAVLINK_CONTROL_ROBOT_MSG_LEN ? msg->len : UAVLINK_CONTROL_ROBOT_MSG_LEN;
+	memset(state, 0, UAVLINK_CONTROL_ROBOT_MSG_LEN);
+	memcpy(state, _MAV_PAYLOAD(msg), len);
 }
 
 typedef struct __uavlink_msg_waypoint_t
