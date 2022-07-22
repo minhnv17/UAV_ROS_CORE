@@ -229,6 +229,7 @@ typedef struct __uavlink_msg_waypoint_t
 static inline uint16_t uavlink_waypoint_encode(uavlink_message_t *msg, const uavlink_msg_waypoint_t *uavlink_msg_waypoint)
 {
 	uavlink_msg_waypoint_t packet;
+	packet.type = uavlink_msg_waypoint->type;
 	packet.wpId = uavlink_msg_waypoint->wpId;
 	packet.targetX = uavlink_msg_waypoint->targetX;
 	packet.targetY = uavlink_msg_waypoint->targetY;
@@ -324,7 +325,7 @@ void handle_msg_waypoint(uavlink_message_t message);
 void handle_cmd_arm_disarm(bool flag);
 void handle_cmd_set_mode(int mode);
 void handle_cmd_takeoff(float altitude);
-void handle_cmd_flyto(bool alwp, int wpid);
+void handle_cmd_flyto(bool alwp, int wpid, int type);
 // Function navigate_to_waypoint
 bool navigate_to(uavlink_msg_waypoint_t point, float tolerance);
 void navigate_points_vector(void *type);

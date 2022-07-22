@@ -23,7 +23,7 @@ def R_matrix(z_angle,y_angle,x_angle):
 
 def get_object():
     array = []
-    f = open('p412data.json')
+    f = open('lab412_data_new.json')
 
     data = json.load(f)
 
@@ -31,7 +31,7 @@ def get_object():
         if(i['type'] == 'box'):
             location = i['location']
             dimension = i['dimension']
-            array.append(obb([-location[0], -location[1], location[2]], 
+            array.append(obb([location[0], location[1], location[2]], 
             [dimension[0] / 2, dimension[1] / 2, dimension[2] / 2], R_matrix(0,0,0)))
     return array
 # Func dung de tao cac khoi hop chu nhat, tai day co 4 khoi hop [x, y, z, a, b, c]
@@ -53,15 +53,15 @@ def getblocks():
 #Func dung de tao lap khoi cau [x, y, z, r]
 def getballs():
     spheres = [[3.0,2.0,3,0.3]]
-    array = []
-    f = open('p412data.json')
+    # array = []
+    # f = open('lab412_data_new.json')
 
-    data = json.load(f)
-    for i in data['objects']:
-        if(i['type'] == 'ball'):
-            location = i['location']
-            dimension = i['dimension']
-            spheres.append([-location[0], -location[1], location[2], dimension[0] / 2])
+    # data = json.load(f)
+    # for i in data['objects']:
+    #     if(i['type'] == 'ball'):
+    #         location = i['location']
+    #         dimension = i['dimension']
+    #         spheres.append([location[0], location[1], location[2], dimension[0] / 2])
     Obstacles = []
     for i in spheres:
         Obstacles.append([j for j in i])
@@ -106,7 +106,7 @@ class obb(object):
 
 class env():
     # Khoi tao kich thuoc cua block tai day
-    def __init__(self, xmin=0, ymin=0, zmin=0, xmax=9.15, ymax=4.25, zmax=4, resolution=0.05):
+    def __init__(self, xmin=0, ymin=0, zmin=0, xmax=4.25, ymax=9.15, zmax=4, resolution=0.1):
     # def __init__(self, xmin=-5, ymin=0, zmin=-5, xmax=10, ymax=5, zmax=10, resolution=1):  
         self.resolution = resolution
         self.boundary = np.array([xmin, ymin, zmin, xmax, ymax, zmax]) 
@@ -123,8 +123,8 @@ class env():
         #                      obb([4.02,5.0,0.9],[0.23,0.5,0.9],R_matrix(0,0,0)),
         #                      obb([4.02,6.5,0.5], [0.23,0.5,0.5], R_matrix(0,0,0))])
         self.OBB = np.array(get_object())
-        self.start = np.array([1, 1, 0])
-        self.goal = np.array([6, 3.5, 0.5])
+        self.start = np.array([1, 5, 1])
+        self.goal = np.array([3, 1, 1])
         self.t = 0 # time 
 
     def New_block(self):
