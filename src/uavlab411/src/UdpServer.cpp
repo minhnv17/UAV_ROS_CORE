@@ -150,14 +150,14 @@ void handle_cmd_flyto(bool allwp, int wpid, int type)
 	else
 	{
 		int type_fly = type;
-		for (short i = 0; i < waypoint_indoor_vector.size(); i++)
-		{
-			ROS_INFO("Received point indoor id: %d ", waypoint_indoor_vector[i].wpId);
-		}
-		for (short i = 0; i < waypoint_GPS_vector.size(); i++)
-		{
-			ROS_INFO("Received point GPS id: %d ", waypoint_indoor_vector[i].wpId);
-		}
+		// for (short i = 0; i < waypoint_indoor_vector.size(); i++)
+		// {
+		// 	ROS_INFO("Received point indoor id: %d ", waypoint_indoor_vector[i].wpId);
+		// }
+		// for (short i = 0; i < waypoint_GPS_vector.size(); i++)
+		// {
+		// 	ROS_INFO("Received point GPS id: %d ", waypoint_GPS_vector[i].wpId);
+		// }
 		if (!check_busy)
 		{
 			ROS_INFO("Start flying to waypoints in mode %s", type == 0 ? "indoor" : "outdoor");
@@ -373,6 +373,7 @@ void navigate_points_vector(void *type)
 {
 	int type_fly = *(int *)type;
 	check_busy = true;
+	ROS_INFO("Type fly: %d", type_fly);
 	if (type_fly == 0)
 	{
 		while (!waypoint_indoor_vector.empty())
