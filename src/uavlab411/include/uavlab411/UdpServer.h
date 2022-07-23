@@ -27,7 +27,7 @@
 #pragma pack(1)
 using std::string;
 
-#define CONTROL_ROBOT_MSG_ID 45
+
 #define UAVLINK_CMD_TAKEOFF 22
 #define UAVLINK_CMD_ARM_DISARM 23
 #define UAVLINK_CMD_LAND 24
@@ -82,6 +82,7 @@ typedef struct __uavlink_message_t
 } uavlink_message_t;
 #define _MAV_PAYLOAD(msg) ((const char *)(&((msg)->payload64[0])))
 #define _MAV_PAYLOAD_NON_CONST(msg) ((char *)(&((msg)->payload64[0])))
+
 
 typedef struct __uavlink_state_t
 {
@@ -197,6 +198,26 @@ static inline void uavlink_manual_control_decode(const uavlink_message_t *msg, u
 	memcpy(uavlink_manual_control, _MAV_PAYLOAD(msg), UAVLINK_MSG_ID_MANUAL_CONTROL_LEN);
 }
 
+typedef struct __uavlink_control_robot_t
+{
+	int32_t step1;
+	int32_t step2;
+	int32_t step3;
+	int32_t step4;
+	int32_t step5;
+
+} uavlink_control_robot_t;
+#define UAVLINK_CONTROL_ROBOT_MSG_ID 7
+#define UAVLINK_CONTROL_ROBOT_MSG_LEN 20
+
+static inline void uavlink_control_robot_decode(const uavlink_message_t *msg, uavlink_control_robot_t *state)
+{
+
+	uint8_t len = msg->len < UAVLINK_CONTROL_ROBOT_MSG_LEN ? msg->len : UAVLINK_CONTROL_ROBOT_MSG_LEN;
+	memset(state, 0, UAVLINK_CONTROL_ROBOT_MSG_LEN);
+	memcpy(state, _MAV_PAYLOAD(msg), len);
+}
+
 typedef struct __uavlink_msg_waypoint_t
 {
 	uint16_t type;
@@ -211,6 +232,7 @@ typedef struct __uavlink_msg_waypoint_t
 static inline uint16_t uavlink_waypoint_encode(uavlink_message_t *msg, const uavlink_msg_waypoint_t *uavlink_msg_waypoint)
 {
 	uavlink_msg_waypoint_t packet;
+	packet.type = uavlink_msg_waypoint->type;
 	packet.wpId = uavlink_msg_waypoint->wpId;
 	packet.targetX = uavlink_msg_waypoint->targetX;
 	packet.targetY = uavlink_msg_waypoint->targetY;
@@ -312,8 +334,13 @@ void handle_cmd_arm_disarm(bool flag);
 void handle_cmd_set_mode(int mode);
 void handle_cmd_takeoff(float altitude);
 void handle_cmd_flyto(bool alwp, int wpid);
-// Function navigate_to_local_waypoint
+void handle_cmd_land();
+
+// Function handle nav wp
 bool navigate_to_local(uavlink_msg_waypoint_t point, float tolerance);
 bool navigate_to_GPS(uavlink_msg_waypoint_t point, float tolerance);
+
+// Function navigate_to_waypoint
+bool navigate_to(uavlink_msg_waypoint_t point, float tolerance);
 void navigate_points_vector(void *type);
-void handle_cmd_land();
+
