@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   geometry_msgs
   message_generation
+  clover
 )
 
 ## System dependencies are found with CMake's conventions
@@ -57,6 +58,7 @@ add_message_files(
 add_service_files(
   FILES
   Navigate.srv
+  NavigateGlobal.srv
   PidTuning.srv
   Takeoff.srv
   Telemetry.srv

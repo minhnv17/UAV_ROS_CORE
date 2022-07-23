@@ -19,6 +19,9 @@
 #include "uavlab411/control_robot_msg.h"
 #include "uavlab411/Takeoff.h"
 #include "uavlab411/Navigate.h"
+#include <math.h>
+
+#include "clover/NavigateGlobal.h"
 #include <std_srvs/Trigger.h>
 
 #pragma pack(1)
@@ -316,6 +319,11 @@ uint16_t uavlink_msg_to_send_buffer(uint8_t *buf, const uavlink_message_t *msg)
 	return msg->len + 1 + 1;
 }
 
+float get_distance_GPS(double lat, double lon, double lat_des, double lon_des)
+{
+	return hypot(lat - lat_des, lon - lon_des) * 1.113195e5;
+}
+
 // Function handle receiver msg
 void handle_msg_manual_control(uavlink_message_t message);
 void handle_command(uavlink_message_t message);
@@ -325,8 +333,14 @@ void handle_msg_waypoint(uavlink_message_t message);
 void handle_cmd_arm_disarm(bool flag);
 void handle_cmd_set_mode(int mode);
 void handle_cmd_takeoff(float altitude);
-void handle_cmd_flyto(bool alwp, int wpid, int type);
+void handle_cmd_flyto(bool alwp, int wpid);
+void handle_cmd_land();
+
+// Function handle nav wp
+bool navigate_to_local(uavlink_msg_waypoint_t point, float tolerance);
+bool navigate_to_GPS(uavlink_msg_waypoint_t point, float tolerance);
+
 // Function navigate_to_waypoint
 bool navigate_to(uavlink_msg_waypoint_t point, float tolerance);
 void navigate_points_vector(void *type);
-void handle_cmd_land();
+
