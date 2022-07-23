@@ -58,6 +58,7 @@ add_message_files(
 add_service_files(
   FILES
   Navigate.srv
+  NavigateGlobal.srv
   PidTuning.srv
   Takeoff.srv
   Telemetry.srv
