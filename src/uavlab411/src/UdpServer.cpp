@@ -144,14 +144,8 @@ void handle_cmd_flyto(bool allwp, int wpid, int type)
 	else
 	{
 		int type_fly = type;
-		// for (short i = 0; i < waypoint_indoor_vector.size(); i++)
-		// {
-		// 	ROS_INFO("Received point indoor id: %d ", waypoint_indoor_vector[i].wpId);
-		// }
-		// for (short i = 0; i < waypoint_GPS_vector.size(); i++)
-		// {
-		// 	ROS_INFO("Received point GPS id: %d ", waypoint_GPS_vector[i].wpId);
-		// }
+		ROS_INFO("WP INDOOR LENGTH: %ld", waypoint_indoor_vector.size());
+		ROS_INFO("WP OUTDOOR LENGTH: %ld", waypoint_GPS_vector.size());
 		if (!check_busy)
 		{
 			ROS_INFO("Start flying to waypoints in mode %s", type == 0 ? "indoor" : "outdoor");
@@ -331,23 +325,23 @@ bool navigate_to_local(uavlink_msg_waypoint_t point, float tolerance)
 			ROS_INFO("nav to waypoint x:%f,y:%f,z:%f success", point.targetX, point.targetY, point.targetZ);
 			return true;
 		}
-		if (ros::Time::now() - start > ros::Duration(10))
-		{
-			ROS_INFO("nav to waypoint err: over 10s -> fly to next waypoint");
-			return true;
-		}
+		// if (ros::Time::now() - start > ros::Duration(10))
+		// {
+		// 	ROS_INFO("nav to waypoint err: over 10s -> fly to next waypoint");
+		// 	return true;
+		// }
 		ros::Duration(0.2).sleep();
 	}
 }
 bool navigate_to_GPS(uavlink_msg_waypoint_t point, float tolerance)
 {
-	clover::NavigateGlobal nav_GPS;
-	nav_GPS.request.lat = point.targetX;
-	nav_GPS.request.lon = point.targetY;
-	nav_GPS.request.z = point.targetZ;
-	nav_GPS.request.frame_id = "map";
-	nav_GPS.request.speed = 1;
-	if (nav_to_GPS_srv.call(nav_GPS))
+	uavlab411::NavigateGlobal msg;
+	msg.request.lat = point.targetX;
+	msg.request.lon = point.targetY;
+	msg.request.alt = point.targetZ;
+	msg.request.speed = 0.8;
+
+	if (nav_to_GPS_srv.call(msg))
 		ROS_INFO("CALLED SERVICE NAVIGATE GPS!");
 	else
 		ROS_ERROR("Failed to call service nav GPS");
@@ -364,11 +358,11 @@ bool navigate_to_GPS(uavlink_msg_waypoint_t point, float tolerance)
 			return true;
 		}
 
-		if (ros::Time::now() - start > ros::Duration(10))
-		{
-			ROS_ERROR("nav to waypoint err: over 10s -> fly to next waypoint");
-			return true;
-		}
+		// if (ros::Time::now() - start > ros::Duration(10))
+		// {
+		// 	ROS_ERROR("nav to waypoint err: over 10s -> fly to next waypoint");
+		// 	return true;
+		// }
 		ros::Duration(0.2).sleep();
 	}
 }
@@ -452,7 +446,6 @@ void readingSocketThread()
 				check_receiver = true;
 			uavlink_message_t message;
 			memcpy(&message, buff, bsize);
-			ROS_INFO("msg id : %d",message.msgid);
 			switch (message.msgid)
 			{
 			case UAVLINK_MSG_ID_MANUAL_CONTROL:
@@ -508,7 +501,7 @@ int main(int argc, char **argv)
 	arming = nh.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
 	takeoff_srv = nh.serviceClient<uavlab411::Takeoff>("uavlab411/takeoff");
 	nav_to_waypoint_srv = nh.serviceClient<uavlab411::Navigate>("uavlab411/navigate");
-	nav_to_GPS_srv = nh.serviceClient<clover::NavigateGlobal>("navigate_global");
+	nav_to_GPS_srv = nh.serviceClient<uavlab411::NavigateGlobal>("uavlab411/navigate_global");
 	land_srv = nh.serviceClient<std_srvs::Trigger>("uavlab411/land");
 
 	// Timer

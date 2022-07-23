@@ -159,7 +159,7 @@ void OffBoard::publish_point()
     case NavGlobal:
         realDistance = getNavigateSetpoint(ros::Time::now(), this->speed, nav_sp);
         pub_globalMessage.publish(nav_sp);
-        if (realDistance < 0.3)
+        if (realDistance < 0.1)
         {
             getCurrentPosition();
             _curMode = Hold;

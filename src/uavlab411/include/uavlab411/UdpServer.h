@@ -9,20 +9,22 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/BatteryState.h>
 #include <std_msgs/String.h>
+#include <std_srvs/Trigger.h>
 #include <geometry_msgs/PoseStamped.h>
-#include "mavros_msgs/State.h"
-#include "mavros_msgs/ManualControl.h"
-#include "mavros_msgs/CommandBool.h"
-#include "mavros_msgs/SetMode.h"
+
+#include <mavros_msgs/State.h>
+#include <mavros_msgs/ManualControl.h>
+#include <mavros_msgs/CommandBool.h>
+#include <mavros_msgs/SetMode.h>
+
 #include <vector>
 #include <array>
+#include <math.h>
+
 #include "uavlab411/control_robot_msg.h"
 #include "uavlab411/Takeoff.h"
 #include "uavlab411/Navigate.h"
-#include <math.h>
-
-#include "clover/NavigateGlobal.h"
-#include <std_srvs/Trigger.h>
+#include "uavlab411/NavigateGlobal.h"
 
 #pragma pack(1)
 using std::string;
