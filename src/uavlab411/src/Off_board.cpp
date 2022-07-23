@@ -157,8 +157,14 @@ void OffBoard::publish_point()
         }
         break;
     case NavGlobal:
-        getNavigateSetpoint(ros::Time::now(), this->speed, nav_sp);
+        realDistance = getNavigateSetpoint(ros::Time::now(), this->speed, nav_sp);
         pub_globalMessage.publish(nav_sp);
+        if (realDistance < 0.3)
+        {
+            getCurrentPosition();
+            _curMode = Hold;
+            ROS_INFO("Switch to HOLD MODE!");
+        }
         break;
     case Hold: // Hold mode
         holdMode();
@@ -355,10 +361,18 @@ bool OffBoard::NavigateGlobal(uavlab411::NavigateGlobal::Request &req,
         getTime = ros::Time::now();
         _curMode = NavGlobal;
         nav_sp.coordinate_frame = 6;
-
+        nav_sp.type_mask = PositionTarget::IGNORE_VX +
+                           PositionTarget::IGNORE_VY +
+                           PositionTarget::IGNORE_VZ +
+                           PositionTarget::IGNORE_AFX +
+                           PositionTarget::IGNORE_AFY +
+                           PositionTarget::IGNORE_AFZ +
+                           PositionTarget::IGNORE_YAW;
         res.success = true;
         res.message = "Navigate to GPS point";
-    } else {
+    }
+    else
+    {
         res.success = false;
         res.message = "Takeoff first";
     }
@@ -549,7 +563,7 @@ bool OffBoard::checkState()
     }
 }
 
-void OffBoard::getNavigateSetpoint(const ros::Time &stamp, float speed, mavros_msgs::GlobalPositionTarget &nav_setpoint)
+float OffBoard::getNavigateSetpoint(const ros::Time &stamp, float speed, mavros_msgs::GlobalPositionTarget &nav_setpoint)
 {
     float distance = getDistance(_startGPoint, _endGPoint);
     float time = distance / speed;
@@ -558,6 +572,11 @@ void OffBoard::getNavigateSetpoint(const ros::Time &stamp, float speed, mavros_m
     nav_setpoint.latitude = _startGPoint.x + (_endGPoint.x - _startGPoint.x) * passed;
     nav_setpoint.longitude = _startGPoint.y + (_endGPoint.y - _startGPoint.y) * passed;
     nav_setpoint.altitude = _startGPoint.z + (_endGPoint.z - _startGPoint.z) * passed;
+
+    geometry_msgs::Point curPos;
+    curPos.x = _globalPos.latitude;
+    curPos.y = _globalPos.longitude;
+    return getDistance(curPos, _endGPoint);
 }
 
 float getDistance(const geometry_msgs::Point &from, const geometry_msgs::Point &to)

@@ -103,11 +103,11 @@ private:
     float Kp_yaw, Kd_yaw, Ki_yaw, Ei_yaw, Error_yaw;
     float Kp_vx, Kd_vx, Ki_vx, Ei_vx, Error_vx;
 
-    float targetX, targetY, targetZ, speed;
+    float targetX, targetY, targetZ, speed, realDistance;
     float PidControl_yaw(float x_cur, float y_cur, float x_goal, float y_goal, float alpha, float dt);
     float PidControl_vx(float x_cur, float y_cur, float x_goal, float y_goal, float dt);
     float Control_vz(float z_cur, float z_goal);
-    void getNavigateSetpoint(const ros::Time &stamp, float speed, mavros_msgs::GlobalPositionTarget &nav_setpoint);
+    float getNavigateSetpoint(const ros::Time &stamp, float speed, mavros_msgs::GlobalPositionTarget &nav_setpoint);
 };
 
 float getDistance(const geometry_msgs::Point &from, const geometry_msgs::Point &to);
