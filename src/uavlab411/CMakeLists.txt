@@ -8,6 +8,7 @@ project(uavlab411)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  rospy
   roscpp
   tf
   geometry_msgs
@@ -51,7 +52,10 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
   FILES
+  detect_object_msg.msg
   control_robot_msg.msg
+  data_sensor_msg.msg
+  drawing_point_msg.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -62,6 +66,7 @@ add_service_files(
   PidTuning.srv
   Takeoff.srv
   Telemetry.srv
+  SetVelocity.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -141,6 +146,7 @@ include_directories(
 add_executable(UdpServer src/UdpServer.cpp)
 add_executable(Localization src/Localization.cpp)
 add_executable(Off_board src/Off_board.cpp)
+add_executable(Sensor_data src/Sensor_data.cpp)
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -159,6 +165,9 @@ target_link_libraries(UdpServer
   ${catkin_LIBRARIES}
 )
 target_link_libraries(Off_board
+  ${catkin_LIBRARIES}
+)
+target_link_libraries(Sensor_data
   ${catkin_LIBRARIES}
 )
 

@@ -1,0 +1,6 @@
+int16 id
+float32 lat
+float32 lon
+float32 temp
+float32 hum
+float32 gas

@@ -12,7 +12,7 @@ source devel/setup.bash
 ## Usage
 
 ```bash
-roslaunch uavlab411 uavlink.launch
+roslaunch uavlab411 indoor.launch
 ```
 ## Navigate
 Example navigate in uavlab411/Example.

@@ -7,8 +7,9 @@ socklen_t android_addr_size = sizeof(android_addr);
 // waypoints vector
 std::vector<uavlink_msg_waypoint_t> waypoint_indoor_vector;
 std::vector<uavlink_msg_waypoint_t> waypoint_GPS_vector;
-bool check_busy;
+bool check_busy_fly_GPS_point;
 bool check_take_off;
+uint32_t lastest_id_waypoint = 0;
 // uavpose
 geometry_msgs::PoseStamped uavpose_msg;
 ros::Duration _uavpose_timemout = ros::Duration(2.0);
@@ -21,7 +22,8 @@ ros::Duration state_timeout;
 ros::ServiceClient takeoff_srv, nav_to_waypoint_srv, land_srv, nav_to_GPS_srv;
 
 // ROS Message
-uavlab411::control_robot_msg msg_robot;        // msg control robot
+uavlab411::drawing_point_msg drawing_point;  	// msg drawing points
+uavlab411::control_robot_msg msg_robot;		   // msg control robot
 mavros_msgs::State state;					   // State robot
 mavros_msgs::ManualControl manual_control_msg; // Manual control msg
 sensor_msgs::NavSatFix global_msg;			   // message from topic "/mavros/global_position/global"
@@ -33,13 +35,14 @@ int port;
 // Service clients
 ros::ServiceClient arming, set_mode;
 
-// Subcriber
-ros::Subscriber state_sub;
 
 // Publisher
 ros::Publisher manual_control_pub;
 ros::Publisher control_robot_pub;
+ros::Publisher drawing_point_pub;
+
 bool check_receiver = false;
+double yaw_compass;
 
 void handle_cmd_set_mode(int mode)
 {
@@ -66,8 +69,6 @@ void handle_cmd_set_mode(int mode)
 		}
 	}
 }
-
-
 
 void handle_cmd_arm_disarm(bool flag)
 {
@@ -126,8 +127,13 @@ void handle_cmd_land()
 	std_srvs::Trigger land;
 	if (land_srv.call(land))
 	{
+		msg_robot.step2 = 100;
+		msg_robot.step3 = 136;
+		msg_robot.step4 = 160;
+		control_robot_pub.publish(msg_robot);
 		ROS_INFO("CALLED LAND SRV!");
 		check_take_off = false;
+		check_busy_fly_GPS_point = false;
 	}
 	else
 	{
@@ -146,7 +152,7 @@ void handle_cmd_flyto(bool allwp, int wpid, int type)
 		int type_fly = type;
 		ROS_INFO("WP INDOOR LENGTH: %ld", waypoint_indoor_vector.size());
 		ROS_INFO("WP OUTDOOR LENGTH: %ld", waypoint_GPS_vector.size());
-		if (!check_busy)
+		if (!check_busy_fly_GPS_point)
 		{
 			ROS_INFO("Start flying to waypoints in mode %s", type == 0 ? "indoor" : "outdoor");
 			std::thread flyThread(&navigate_points_vector, &type_fly);
@@ -185,15 +191,28 @@ void handle_command(uavlink_message_t message)
 		break;
 	}
 }
+
+void handle_msg_drawing_point(uavlink_message_t message)
+{
+	uavlink_msg_drawing_point_t drawing_point_recv;
+	uavlink_drawing_point_decode(&message, &drawing_point_recv);
+	drawing_point.x = drawing_point_recv.x;
+	drawing_point.y = drawing_point_recv.y;
+	drawing_point.z = drawing_point_recv.z;
+	ROS_INFO("x: %f  y: %f  z: %f", drawing_point.x, drawing_point.y, drawing_point.z);
+	drawing_point_pub.publish(drawing_point);
+}
+
 void handle_msg_control_robot(uavlink_message_t message)
 {
 	uavlink_control_robot_t robot_msg_rev;
-	uavlink_control_robot_decode(&message,&robot_msg_rev);
+	uavlink_control_robot_decode(&message, &robot_msg_rev);
 	msg_robot.step1 = robot_msg_rev.step1;
 	msg_robot.step2 = robot_msg_rev.step2;
 	msg_robot.step3 = robot_msg_rev.step3;
 	msg_robot.step4 = robot_msg_rev.step4;
 	msg_robot.step5 = robot_msg_rev.step5;
+	msg_robot.header.stamp = ros::Time::now();
 	control_robot_pub.publish(msg_robot);
 }
 void handle_msg_manual_control(uavlink_message_t message)
@@ -210,13 +229,21 @@ void handle_msg_manual_control(uavlink_message_t message)
 // Handle waupoint message
 void handle_msg_waypoint(uavlink_message_t message)
 {
+	
 	uavlink_msg_waypoint_t waypoint;
 	uavlink_waypoint_decode(&message, &waypoint);
-	// ROS_INFO("msg rev:x= %f,y=%f,z=%f",waypoint.targetX,waypoint.targetY,waypoint.targetZ);
-	if (waypoint.type == 0)
-		waypoint_indoor_vector.push_back(waypoint);
+	ROS_INFO("new msg wp:type:%d   id:%d",waypoint.type,waypoint.wpId);
+	if (waypoint.type == 0) waypoint_indoor_vector.push_back(waypoint);
 	else if (waypoint.type == 1)
-		waypoint_GPS_vector.push_back(waypoint);
+	{
+		// ROS_INFO("msg rev:id:%d x= %f,y=%f,z=%f,",waypoint.wpId,waypoint.targetX,waypoint.targetY,waypoint.targetZ);
+		if (waypoint.wpId > lastest_id_waypoint)
+		{
+			waypoint_GPS_vector.push_back(waypoint);
+			lastest_id_waypoint = waypoint.wpId;
+		}
+	}
+		
 	else
 		ROS_ERROR("Error: type of message waypoint received is invalid ! : type is %d", waypoint.type);
 }
@@ -241,7 +268,7 @@ void handleState(const mavros_msgs::State &s)
 // Handle Local Position from UAV
 void handleLocalPosition(const nav_msgs::Odometry &o)
 {
-	ros::Rate r(2);
+	ros::Rate r(10);
 	uavlink_global_position_int_t global_pos;
 	global_pos.vx = (int16_t)(o.twist.twist.linear.x * 100);
 	global_pos.vy = (int16_t)(o.twist.twist.linear.y * 100);
@@ -249,9 +276,10 @@ void handleLocalPosition(const nav_msgs::Odometry &o)
 
 	// get data from global_position
 	global_pos.alt = (int16_t)(o.pose.pose.position.z * 100);
-	// global_pos.alt = 1;
 	global_pos.lat = (int32_t)(global_msg.latitude * 10000000);
 	global_pos.lon = (int32_t)(global_msg.longitude * 10000000);
+	global_pos.yaw = (int16_t)(yaw_compass * 180 / PI);
+	global_pos.yaw = 450 - global_pos.yaw > 360 ? 90 - global_pos.yaw : 450 - global_pos.yaw;
 	uavlink_message_t msg;
 	uavlink_global_position_encode(&msg, &global_pos);
 	char buf[300];
@@ -265,7 +293,24 @@ void handleGlobalPosition(const sensor_msgs::NavSatFix &n)
 {
 	global_msg = n;
 }
-
+// Handle sensor data from node sensor
+void handleSensorData(const uavlab411::data_sensor_msg &data_from_node)
+{
+	uavlink_msg_sensor_data_t data;
+	char buf[300];
+	data.id = data_from_node.id;
+	data.lat = (int32_t)(data_from_node.lat*10000000);
+	data.lon = (int32_t)(data_from_node.lon*10000000);
+	data.temperature = (int16_t)(data_from_node.temp*100);
+	data.humidity = (int16_t)(data_from_node.hum*100);
+	data.gas = (int16_t)(data_from_node.gas*100);
+	uavlink_message_t msg;
+	uavlink_sensor_data_encode(&msg, &data);
+	uint16_t len = uavlink_msg_to_send_buffer((uint8_t *)buf, &msg);
+	writeSocketMessage(buf, len);
+	// ROS_INFO("id sensor: %d",data.id);
+	
+}
 void handleUavPose(const geometry_msgs::PoseStampedConstPtr &_uavpose)
 {
 	uavlink_local_position_int_t uavpose;
@@ -289,6 +334,46 @@ void handle_Battery_State(const sensor_msgs::BatteryState &bat)
 {
 	battery_msg = bat;
 }
+
+void handleImuData(const sensor_msgs::Imu::ConstPtr &msg)
+{
+	tf::Quaternion q(
+		msg->orientation.x,
+		msg->orientation.y,
+		msg->orientation.z,
+		msg->orientation.w);
+	tf::Matrix3x3 m(q);
+	double roll, pitch;
+	m.getRPY(roll, pitch, yaw_compass);
+}
+
+void handleControlRobot(const uavlab411::control_robot_msg &_robot)
+{
+	uavlink_control_robot_t robot;
+	robot.step1 = _robot.step1;
+	robot.step2 = _robot.step2;
+	robot.step4 = _robot.step4;
+	uavlink_message_t msg;
+	uavlink_control_robot_encode(&msg, &robot);
+	char buf[100];
+	uint16_t len = uavlink_msg_to_send_buffer((uint8_t *)buf, &msg);
+	writeSocketMessage(buf, len);
+}
+
+void handleDetectObject(const uavlab411::detect_object_msg &_object)
+{
+	uavlink_msg_detect_object_t object;
+	object.x = _object.x;
+	object.y = _object.y;
+	object.z = _object.z;
+	object.distance = _object.distance;
+	uavlink_message_t msg;
+	uavlink_detect_object_encode(&msg, &object);
+	char buf[100];
+	uint16_t len = uavlink_msg_to_send_buffer((uint8_t *)buf, &msg);
+	writeSocketMessage(buf, len);
+}
+
 void init()
 {
 	// Thread for UDP soket read
@@ -372,7 +457,7 @@ bool navigate_to_GPS(uavlink_msg_waypoint_t point, float tolerance)
 void navigate_points_vector(void *type)
 {
 	int type_fly = *(int *)type;
-	check_busy = true;
+	check_busy_fly_GPS_point = true;
 	ROS_INFO("Type fly: %d", type_fly);
 	if (type_fly == 0)
 	{
@@ -390,7 +475,7 @@ void navigate_points_vector(void *type)
 		while (!waypoint_GPS_vector.empty())
 		{
 			ROS_INFO("fly to point lat: %f lon:%f z:%f", waypoint_GPS_vector[0].targetX, waypoint_GPS_vector[0].targetY, waypoint_GPS_vector[0].targetZ);
-			if (navigate_to_GPS(waypoint_GPS_vector[0], 0.1))
+			if (navigate_to_GPS(waypoint_GPS_vector[0], 0.3))
 			{
 				waypoint_GPS_vector.erase(waypoint_GPS_vector.begin());
 			}
@@ -401,7 +486,7 @@ void navigate_points_vector(void *type)
 		ROS_ERROR("Error: invalid type fly : %d", type_fly);
 	}
 
-	check_busy = false;
+	check_busy_fly_GPS_point = false;
 }
 
 int createSocket(int port)
@@ -446,8 +531,10 @@ void readingSocketThread()
 		{
 			if (!check_receiver)
 				check_receiver = true;
+			
 			uavlink_message_t message;
 			memcpy(&message, buff, bsize);
+			
 			switch (message.msgid)
 			{
 			case UAVLINK_MSG_ID_MANUAL_CONTROL:
@@ -464,6 +551,9 @@ void readingSocketThread()
 			case UAVLINK_MSG_ID_WAYPOINT:
 				handle_msg_waypoint(message);
 				break;
+			case UAVLINK_MSG_ID_DRAWING_POINT:
+				handle_msg_drawing_point(message);
+				break;
 			default:
 				break;
 			}
@@ -476,6 +566,7 @@ void writeSocketMessage(char buff[], int length)
 	if (check_receiver) // Need received first
 	{
 		int len = sendto(sockfd, (const char *)buff, length, 0, (const struct sockaddr *)&android_addr, android_addr_size);
+		// ROS_INFO("length: %d",len);
 	}
 }
 
@@ -488,6 +579,7 @@ int main(int argc, char **argv)
 	nh_priv.param("port", port, 12345);
 
 	// Initial publisher
+	drawing_point_pub = nh.advertise<uavlab411::drawing_point_msg>("uavlab411/drawing_point", 1);
 	manual_control_pub = nh.advertise<mavros_msgs::ManualControl>("mavros/manual_control/send", 1);
 	control_robot_pub = nh.advertise<uavlab411::control_robot_msg>("uavlab411/control_robot", 1);
 
@@ -497,6 +589,10 @@ int main(int argc, char **argv)
 	auto local_position_sub = nh.subscribe("/mavros/global_position/local", 1, &handleLocalPosition);
 	auto battery_sub = nh.subscribe("/mavros/battery", 1, &handle_Battery_State);
 	auto uavpose_sub = nh.subscribe("uavlab411/uavpose", 1, &handleUavPose);
+	auto data_sensor_sub = nh.subscribe("/uavlab411/sensor",1,&handleSensorData);
+	auto sub_imu_data = nh.subscribe<sensor_msgs::Imu>("/mavros/imu/data", 1, &handleImuData);
+	auto control_robot_sub = nh.subscribe("send_control_robot", 1, &handleControlRobot);
+	auto detect_object_sub = nh.subscribe("/uavlab411/detect", 1, &handleDetectObject);
 
 	// Service client
 	set_mode = nh.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");

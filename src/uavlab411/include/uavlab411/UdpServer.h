@@ -5,13 +5,14 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <thread>
+#include <tf/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/BatteryState.h>
+#include <sensor_msgs/Imu.h>
 #include <std_msgs/String.h>
 #include <std_srvs/Trigger.h>
 #include <geometry_msgs/PoseStamped.h>
-
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/ManualControl.h>
 #include <mavros_msgs/CommandBool.h>
@@ -21,7 +22,10 @@
 #include <array>
 #include <math.h>
 
+#include "uavlab411/drawing_point_msg.h"
 #include "uavlab411/control_robot_msg.h"
+#include "uavlab411/data_sensor_msg.h"
+#include "uavlab411/detect_object_msg.h"
 #include "uavlab411/Takeoff.h"
 #include "uavlab411/Navigate.h"
 #include "uavlab411/NavigateGlobal.h"
@@ -36,8 +40,9 @@ using std::string;
 #define UAVLINK_CMD_FLYTO 25
 #define UAVLINK_CMD_SET_MODE 26
 
-#define MAX_VOLTAGE 16
-#define MIN_VOLTAGE 14
+#define PI 3.14159265358979323846 
+#define MAX_VOLTAGE 12.6
+#define MIN_VOLTAGE 11.1
 #define TIMEOUT(msg, timeout) (msg.header.stamp.isZero() || (ros::Time::now() - msg.header.stamp > timeout))
 
 string mode_define[] = {"MANUAL", "POSCTL", "OFFBOARD", "AUTO.LAND"};
@@ -45,12 +50,16 @@ string mode_define[] = {"MANUAL", "POSCTL", "OFFBOARD", "AUTO.LAND"};
 void readingSocketThread();
 void writeSocketMessage(char *, int);
 int createSocket(int);
+
 void handleState(const mavros_msgs::State &);
 void handleLocalPosition(const nav_msgs::Odometry &);
 void handleGlobalPosition(const sensor_msgs::NavSatFix &);
 void handleUavPose(const geometry_msgs::PoseStampedConstPtr &);
 void stateTimedOut(const ros::TimerEvent &);
 void handleBatteryState(const sensor_msgs::BatteryState &);
+void handleSensorData(const uavlab411::data_sensor_msg &);
+void handleControlRobot(const uavlab411::control_robot_msg &);
+void handleDetectObject(const uavlab411::detect_object_msg &);
 
 // Function handle send msg
 void handle_Write_State(char buff[]);
@@ -126,9 +135,10 @@ typedef struct __uavlink_global_position_int_t
 	int16_t vx;
 	int16_t vy;
 	int16_t vz;
+	int16_t yaw;
 } uavlink_global_position_int_t;
 #define UAVLINK_MSG_ID_GLOBAL_POSITION_INT 2
-#define UAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN 24
+#define UAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN 18
 
 static inline uint16_t uavlink_global_position_encode(uavlink_message_t *msg, const uavlink_global_position_int_t *uavlink_global_position)
 {
@@ -139,6 +149,7 @@ static inline uint16_t uavlink_global_position_encode(uavlink_message_t *msg, co
 	packet.vx = uavlink_global_position->vx;
 	packet.vy = uavlink_global_position->vy;
 	packet.vz = uavlink_global_position->vz;
+	packet.yaw = uavlink_global_position->yaw;
 	memcpy(_MAV_PAYLOAD_NON_CONST(msg), &packet, UAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN);
 	msg->msgid = UAVLINK_MSG_ID_GLOBAL_POSITION_INT;
 	msg->len = UAVLINK_MSG_ID_GLOBAL_POSITION_INT_LEN;
@@ -161,7 +172,7 @@ typedef struct __uavlink_local_position_int_t
 	int16_t vz;
 } uavlink_local_position_int_t;
 #define UAVLINK_MSG_ID_LOCAL_POSITION_INT 3
-#define UAVLINK_MSG_ID_LOCAL_POSITION_INT_LEN 24
+#define UAVLINK_MSG_ID_LOCAL_POSITION_INT_LEN 12
 
 static inline uint16_t uavlink_local_position_encode(uavlink_message_t *msg, const uavlink_local_position_int_t *uavlink_local_position)
 {
@@ -211,6 +222,20 @@ typedef struct __uavlink_control_robot_t
 } uavlink_control_robot_t;
 #define UAVLINK_CONTROL_ROBOT_MSG_ID 7
 #define UAVLINK_CONTROL_ROBOT_MSG_LEN 20
+
+static inline uint16_t uavlink_control_robot_encode(uavlink_message_t *msg, const uavlink_control_robot_t *uavlink_control_robot)
+{
+	uavlink_control_robot_t packet;
+	packet.step1 = uavlink_control_robot->step1;
+	packet.step2 = uavlink_control_robot->step2;
+	packet.step3 = uavlink_control_robot->step3;
+	packet.step4 = uavlink_control_robot->step4;
+	packet.step5 = uavlink_control_robot->step5;
+	memcpy(_MAV_PAYLOAD_NON_CONST(msg), &packet, UAVLINK_CONTROL_ROBOT_MSG_LEN);
+	msg->msgid = UAVLINK_CONTROL_ROBOT_MSG_ID;
+	msg->len = UAVLINK_CONTROL_ROBOT_MSG_LEN;
+	return 1;
+}
 
 static inline void uavlink_control_robot_decode(const uavlink_message_t *msg, uavlink_control_robot_t *state)
 {
@@ -288,6 +313,73 @@ static inline void uavlink_command_decode(const uavlink_message_t *msg, uavlink_
 	memcpy(&uavlink_command->param4, _MAV_PAYLOAD(msg) + (index += 4), 4);
 }
 
+typedef struct __uavlink_msg_sensor_data_t
+{
+	int16_t id;
+	int32_t lat;
+	int32_t lon;
+	int16_t temperature;
+	int16_t humidity;
+	int16_t gas;
+} uavlink_msg_sensor_data_t;
+#define UAVLINK_MSG_ID_SENSOR_DATA 8
+#define UAVLINK_MSG_ID_SENSOR_DATA_LEN 16
+
+static inline uint16_t uavlink_sensor_data_encode(uavlink_message_t *msg, const uavlink_msg_sensor_data_t *uavlink_sensor_data)
+{
+	uavlink_msg_sensor_data_t packet;
+	packet.id = uavlink_sensor_data->id;
+	packet.lat = uavlink_sensor_data->lat;
+	packet.lon = uavlink_sensor_data->lon;
+	packet.temperature = uavlink_sensor_data->temperature;
+	packet.humidity = uavlink_sensor_data->humidity;
+	packet.gas = uavlink_sensor_data->gas;
+	memcpy(_MAV_PAYLOAD_NON_CONST(msg), &packet, UAVLINK_MSG_ID_SENSOR_DATA_LEN);
+	msg->msgid = UAVLINK_MSG_ID_SENSOR_DATA;
+	msg->len = UAVLINK_MSG_ID_SENSOR_DATA_LEN;
+	return 1;
+}
+
+typedef struct _uavlink_msg_detect_object_t
+{
+	float x;
+	float y;
+	float z;
+	float distance;
+} uavlink_msg_detect_object_t;
+#define UAVLINK_MSG_ID_DETECT_OBJECT 9
+#define UAVLINK_MSG_ID_DETECT_OBJECT_LEN 16
+
+static inline uint16_t uavlink_detect_object_encode(uavlink_message_t *msg, const uavlink_msg_detect_object_t *uavlink_detect_object)
+{
+	uavlink_msg_detect_object_t packet;
+	packet.x = uavlink_detect_object->x;
+	packet.y = uavlink_detect_object->y;
+	packet.z = uavlink_detect_object->z;
+	packet.distance = uavlink_detect_object->distance;
+	memcpy(_MAV_PAYLOAD_NON_CONST(msg), &packet, UAVLINK_MSG_ID_DETECT_OBJECT_LEN);
+	msg->msgid = UAVLINK_MSG_ID_DETECT_OBJECT;
+	msg->len = UAVLINK_MSG_ID_DETECT_OBJECT_LEN;
+	return 1;	
+}
+
+typedef struct _uavlink_msg_drawing_point_t
+{
+	float x;
+	float y;
+	float z;
+} uavlink_msg_drawing_point_t;
+#define UAVLINK_MSG_ID_DRAWING_POINT 10
+#define UAVLINK_MSG_ID_DRAWING_POINT_LEN 12
+
+static inline uint16_t uavlink_drawing_point_decode(const uavlink_message_t *msg, uavlink_msg_drawing_point_t *uavlink_drawing_point)
+{
+	uint8_t len = msg->len < UAVLINK_MSG_ID_DRAWING_POINT_LEN ? msg->len : UAVLINK_MSG_ID_DRAWING_POINT_LEN;
+	memset(uavlink_drawing_point, 0, UAVLINK_MSG_ID_DRAWING_POINT_LEN);
+	memcpy(uavlink_drawing_point, _MAV_PAYLOAD(msg), UAVLINK_MSG_ID_DRAWING_POINT_LEN);
+}
+
+
 // Message helper define
 uint8_t _mav_trim_payload(const char *payload, uint8_t length)
 {
@@ -330,6 +422,7 @@ float get_distance_GPS(double lat, double lon, double lat_des, double lon_des)
 void handle_msg_manual_control(uavlink_message_t message);
 void handle_command(uavlink_message_t message);
 void handle_msg_waypoint(uavlink_message_t message);
+void handle_msg_drawing_point(uavlink_message_t message);
 
 // Function handle command
 void handle_cmd_arm_disarm(bool flag);

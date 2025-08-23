@@ -1,7 +1,0 @@
-<launch>
-    <node name="UdpSocket" pkg="uavlab411" type="UdpServer" output="screen">
-    </node>
-    <node name="aruco_position" pkg="uavlab411" type="Localization" output = "screen">
-    </node>
-    <node name="offboard_node" pkg="uavlab411" type="Off_board" output="screen" />
-</launch>
